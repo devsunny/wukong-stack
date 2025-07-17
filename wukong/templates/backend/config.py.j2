@@ -1,0 +1,14 @@
+from pydantic_settings import BaseSettings, SettingsConfigDict
+import os
+
+class Settings(BaseSettings):
+    DATABASE_URL: str = "postgresql+psycopg2://user:password@localhost:5432/dbname"
+    # Example for other DB types:
+    # SQLITE: "sqlite:///./sql_app.db"
+    # MYSQL: "mysql+mysqlconnector://user:3306/dbname"
+    # MSSQL: "mssql+pyodbc://user:password@localhost:1433/dbname?driver=ODBC+Driver+17+for+SQL+Server"
+    # ORACLE: "oracle+cx_oracle://user:password@localhost:1521/dbname"
+
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+settings = Settings()

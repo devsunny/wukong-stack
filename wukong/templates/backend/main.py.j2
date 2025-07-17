@@ -1,0 +1,24 @@
+from fastapi import FastAPI
+from .database import create_db_and_tables
+{% for router_import in router_imports %}
+{{ router_import }}
+{% endfor %}
+
+app = FastAPI(
+    title="Generated CRUD API",
+    description="Automatically generated FastAPI application with CRUD operations for your database tables.",
+    version="1.0.0",
+)
+
+# Create database tables on startup
+@app.on_event("startup")
+def on_startup():
+    create_db_and_tables()
+
+{% for include_router in include_routers %}
+{{ include_router }}
+{% endfor %}
+
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to the generated FastAPI CRUD API!"}

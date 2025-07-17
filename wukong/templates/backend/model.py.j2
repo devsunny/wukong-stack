@@ -1,0 +1,80 @@
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, Numeric, Date, UUID, LargeBinary, JSON, func, ForeignKey
+from sqlalchemy.orm import relationship, Mapped, mapped_column
+from typing import List
+from datetime import datetime, date
+import uuid
+
+# Base is typically imported from database.py in a real project structure
+# For standalone template rendering, we define it here.
+from sqlalchemy.ext.declarative import declarative_base
+Base = declarative_base()
+
+# Import all other models for type hinting in relationships
+{% for other_table in all_tables %}
+{% if other_table.name != table.name %}
+from .{{ other_table.name | snake_case }} import {{ other_table.name | pascal_case }}
+{% endif %}
+{% endfor %}
+
+class {{ table_pascal_case }}(Base):
+    __tablename__ = "{{ table_snake_case }}"
+    {% if table.schema %}
+    __table_args__ = ({'schema': '{{ table.schema }}'},)
+    {% endif %}
+
+    {% for column in columns %}
+    {{ column.name | snake_case }}: Mapped[{{ CRUDApiGenerator._sql_type_to_python_type(column) }}] = mapped_column(
+        {% if column.foreign_key_ref %}
+        Column(
+            {{ CRUDApiGenerator._get_sqlalchemy_type(column) }},
+            ForeignKey("{{ column.foreign_key_ref[1] }}.{{ column.foreign_key_ref[2] }}"),
+            {% if column.is_primary %}primary_key=True,{% endif %}
+            {% if not column.nullable %}nullable=False,{% endif %}
+            {% if column.default_value is not none %}{% if CRUDApiGenerator._should_use_server_default(column) %}server_default=func.now(),{% elif column.data_type.lower() in ['varchar', 'text', 'char', 'uuid', 'json', 'jsonb', 'date', 'timestamp', 'timestamptz', 'datetime', 'time'] %}default="{{ column.default_value }}",{% else %}default={{ column.default_value }},{% endif %}{% endif %}
+        )
+        {% else %}
+        {{ CRUDApiGenerator._get_sqlalchemy_type(column) }},
+        {% if column.is_primary %}
+        primary_key=True,
+        {% endif %}
+        {% if not column.nullable %}
+        nullable=False,
+        {% endif %}
+        {% if CRUDApiGenerator._should_use_server_default(column) %}
+        server_default=func.now(),
+        {% elif column.default_value is not none %} {# Only use default if not server_default and default_value exists #}
+            {% if column.data_type.lower() in ['varchar', 'text', 'char', 'uuid', 'json', 'jsonb', 'date', 'timestamp', 'timestamptz', 'datetime', 'time'] %}
+        default="{{ column.default_value }}",
+            {% else %}
+        default={{ column.default_value }},
+            {% endif %}
+        {% endif %}
+        {% endif %}
+    )
+    {% endfor %}
+
+    {% for fk in table.foreign_keys %}
+    # Relationship from child (this table) to parent (referenced table)
+    # E.g., if this is a 'Post' table with 'user_id' FK to 'User', this creates 'post.user_object'
+    {{ fk.ref_table | singularize | snake_case }}_object: Mapped[{{ fk.ref_table | pascal_case }}] = relationship(
+        foreign_keys=[{{ fk.columns | map('snake_case') | join(', ') }}],
+        back_populates="{{ table_snake_case | pluralize }}_collection" # back_populates points to the collection on the parent
+    )
+    {% endfor %}
+
+    {% for child_table in all_tables %}
+    {% if child_table.name != table.name %}
+        {% for fk in child_table.foreign_keys %}
+            {% if fk.ref_table == table.name %}
+    # Relationship from parent (this table) to child ({{ child_table.name }})
+    # E.g., if this is a 'User' table, and 'Post' has 'user_id' FK to 'User', this creates 'user.posts_collection'
+    {{ child_table.name | pluralize | snake_case }}_collection: Mapped[List[{{ child_table.name | pascal_case }}]] = relationship(
+        back_populates="{{ child_table.name | singularize | snake_case }}_object" # back_populates points to the object on the child
+    )
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+    {% endfor %}
+
+    def __repr__(self):
+        return f"<{{ table_pascal_case }}({{ CRUDApiGenerator._get_pk_names_for_repr(table) }})>"

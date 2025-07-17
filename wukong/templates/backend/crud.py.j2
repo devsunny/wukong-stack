@@ -1,0 +1,76 @@
+from sqlalchemy.orm import Session, selectinload
+from ..models.{{ table_snake_case }} import {{ table_pascal_case }}
+from ..schemas.{{ table_snake_case }} import {{ table_pascal_case }}Create, {{ table_pascal_case }}Update, {{ table_pascal_case }}Read
+from typing import List, Optional
+
+def get_{{ table_snake_case }}(db: Session, {{ CRUDApiGenerator._get_pk_name(table) | snake_case }}: {{ CRUDApiGenerator._get_pk_type(table) }}, eager_load_relations: bool = False) -> Optional[{{ table_pascal_case }}]:
+    """
+    Retrieve a single {{ table_snake_case }} by its primary key.
+    If eager_load_relations is True, direct one-to-many relationships are loaded.
+    """
+    query = db.query({{ table_pascal_case }})
+    {% for child_table in all_tables %}
+    {% if child_table.name != table.name %}
+        {% for fk in child_table.foreign_keys %}
+            {% if fk.ref_table == table.name %}
+    if eager_load_relations:
+        query = query.options(selectinload({{ table_pascal_case }}.{{ child_table.name | pluralize | snake_case }}_collection))
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+    {% endfor %}
+    return query.filter({{ table_pascal_case }}.{{ CRUDApiGenerator._get_pk_name(table) | snake_case }} == {{ CRUDApiGenerator._get_pk_name(table) | snake_case }}).first()
+
+def get_all_{{ table_snake_case | pluralize }}(db: Session, skip: int = 0, limit: int = 100, eager_load_relations: bool = False) -> List[{{ table_pascal_case }}]:
+    """
+    Retrieve a list of all {{ table_snake_case | pluralize }}.
+    If eager_load_relations is True, direct one-to-many relationships are loaded.
+    """
+    query = db.query({{ table_pascal_case }})
+    {% for child_table in all_tables %}
+    {% if child_table.name != table.name %}
+        {% for fk in child_table.foreign_keys %}
+            {% if fk.ref_table == table.name %}
+    if eager_load_relations:
+        query = query.options(selectinload({{ table_pascal_case }}.{{ child_table.name | pluralize | snake_case }}_collection))
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+    {% endfor %}
+    return query.offset(skip).limit(limit).all()
+
+def create_{{ table_snake_case }}(db: Session, {{ table_snake_case }}: {{ table_pascal_case }}Create) -> {{ table_pascal_case }}Read:
+    """
+    Create a new {{ table_snake_case }} record.
+    """
+    db_{{ table_snake_case }} = {{ table_pascal_case }}(**{{ table_snake_case }}.model_dump())
+    db.add(db_{{ table_snake_case }})
+    db.commit()
+    db.refresh(db_{{ table_snake_case }})
+    return db_{{ table_snake_case }}
+
+def update_{{ table_snake_case }}(db: Session, {{ CRUDApiGenerator._get_pk_name(table) | snake_case }}: {{ CRUDApiGenerator._get_pk_type(table) }}, {{ table_snake_case }}_update: {{ table_pascal_case }}Update) -> Optional[{{ table_pascal_case }}Read]:
+    """
+    Update an existing {{ table_snake_case }} record.
+    """
+    db_{{ table_snake_case }} = db.query({{ table_pascal_case }}).filter({{ table_pascal_case }}.{{ CRUDApiGenerator._get_pk_name(table) | snake_case }} == {{ CRUDApiGenerator._get_pk_name(table) | snake_case }}).first()
+    if not db_{{ table_snake_case }}:
+        return None
+    
+    for key, value in {{ table_snake_case }}_update.model_dump(exclude_unset=True).items():
+        setattr(db_{{ table_snake_case }}, key, value)
+    
+    db.commit()
+    db.refresh(db_{{ table_snake_case }})
+    return db_{{ table_snake_case }}
+
+def delete_{{ table_snake_case }}(db: Session, {{ CRUDApiGenerator._get_pk_name(table) | snake_case }}: {{ CRUDApiGenerator._get_pk_type(table) }}) -> Optional[{{ table_pascal_case }}Read]:
+    """
+    Delete a {{ table_snake_case }} record.
+    """
+    db_{{ table_snake_case }} = db.query({{ table_pascal_case }}).filter({{ table_pascal_case }}.{{ CRUDApiGenerator._get_pk_name(table) | snake_case }} == {{ CRUDApiGenerator._get_pk_name(table) | snake_case }}).first()
+    if not db_{{ table_snake_case }}:
+        return None
+    db.delete(db_{{ table_snake_case }})
+    db.commit()
+    return db_{{ table_snake_case }}
