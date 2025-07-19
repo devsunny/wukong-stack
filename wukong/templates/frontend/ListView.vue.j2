@@ -1,0 +1,190 @@
+<template>
+  <div class="card">
+    <Toolbar class="mb-4">
+      <template #start>
+        <Button label="New" icon="pi pi-plus" severity="success" class="mr-2" @click="openNew" />
+        <Button label="Delete" icon="pi pi-trash" severity="danger" @click="confirmDeleteSelected" :disabled="!selected{{ table_pascal_case }}s || !selected{{ table_pascal_case }}s.length" />
+      </template>
+      <template #end>
+        <FileUpload mode="basic" accept="image/*" :maxFileSize="1000000" label="Import" chooseLabel="Import" class="mr-2 inline-block" />
+        <Button label="Export" icon="pi pi-upload" severity="help" @click="exportCSV($event)" />
+      </template>
+    </Toolbar>
+
+    <DataTable ref="dt" :value="{{ table_snake_case | pluralize }}" v-model:selection="selected{{ table_pascal_case }}s" dataKey="{{ pk_name | snake_case }}"
+      :paginator="true" :rows="10" :filters="filters"
+      paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
+      :rowsPerPageOptions="[5,10,25]" currentPageReportTemplate="Showing {first} to {last} of {totalRecords} {{ table_snake_case | pluralize }}">
+      <Column selectionMode="multiple" style="width: 3rem" :exportable="false"></Column>
+      {% for column in columns %}
+      <Column field="{{ column.name | snake_case }}" header="{{ column.name | pascal_case }}" sortable style="min-width:12rem"></Column>
+      {% endfor %}
+      <Column :exportable="false" style="min-width:8rem">
+        <template #body="slotProps">
+          <Button icon="pi pi-pencil" severity="success" class="mr-2" @click="edit{{ table_pascal_case }}(slotProps.data)" />
+          <Button icon="pi pi-trash" severity="warning" @click="confirmDelete{{ table_pascal_case }}(slotProps.data)" />
+        </template>
+      </Column>
+    </DataTable>
+  </div>
+
+  <Dialog v-model:visible="{{ table_snake_case }}Dialog" :style="{width: '450px'}" header="{{ table_pascal_case }} Details" :modal="true" class="p-fluid">
+    <div class="field">
+      <label for="{{ pk_name | snake_case }}">{{ pk_name | pascal_case }}</label>
+      <InputText id="{{ pk_name | snake_case }}" v-model.trim="new{{ table_pascal_case }}.{{ pk_name | snake_case }}" required="true" autofocus :class="{'p-invalid': submitted && !new{{ table_pascal_case }}.{{ pk_name | snake_case }}" />
+      <small class="p-error" v-if="submitted && !new{{ table_pascal_case }}.{{ pk_name | snake_case }}">ID is required.</small>
+    </div>
+    {% for column in columns %}
+    {% if not column.is_primary %}
+    <div class="field">
+      <label for="{{ column.name | snake_case }}">{{ column.name | pascal_case }}</label>
+      {% if CRUDApiGenerator._is_text_area(column) %}
+      <Textarea id="{{ column.name | snake_case }}" v-model="new{{ table_pascal_case }}.{{ column.name | snake_case }}" rows="3" cols="20" />
+      {% elif CRUDApiGenerator._is_checkbox(column) %}
+      <Checkbox id="{{ column.name | snake_case }}" v-model="new{{ table_pascal_case }}.{{ column.name | snake_case }}" :binary="true" />
+      {% else %}
+      <InputText 
+        id="{{ column.name | snake_case }}" 
+        v-model="new{{ table_pascal_case }}.{{ column.name | snake_case }}" 
+        {% if CRUDApiGenerator._get_vue_model_type(column) == 'number' %}@input="new{{ table_pascal_case }}.{{ column.name | snake_case }} = parseFloat($event.target.value)"{% endif %}
+        :type="CRUDApiGenerator._js_form_input_type(column)" 
+      />
+      {% endif %}
+    </div>
+    {% endif %}
+    {% endfor %}
+
+    <template #footer>
+      <Button label="Cancel" icon="pi pi-times" text @click="hideDialog"/>
+      <Button label="Save" icon="pi pi-check" text @click="save{{ table_pascal_case }}"/>
+    </template>
+  </Dialog>
+
+  <Dialog v-model:visible="delete{{ table_pascal_case }}Dialog" :style="{width: '450px'}" header="Confirm" :modal="true">
+    <div class="confirmation-content">
+      <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem" />
+      <span v-if="new{{ table_pascal_case }}">Are you sure you want to delete <b>{{ 'new' + table_pascal_case + '.' + pk_name }}</b>?</span>
+    </div>
+    <template #footer>
+      <Button label="No" icon="pi pi-times" text @click="delete{{ table_pascal_case }}Dialog = false"/>
+      <Button label="Yes" icon="pi pi-check" text @click="delete{{ table_pascal_case }}"/>
+    </template>
+  </Dialog>
+
+  <Dialog v-model:visible="delete{{ table_pascal_case }}sDialog" :style="{width: '450px'}" header="Confirm" :modal="true">
+    <div class="confirmation-content">
+      <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem" />
+      <span v-if="new{{ table_pascal_case }}s">Are you sure you want to delete the selected {{ table_snake_case | pluralize }}?</span>
+    </div>
+    <template #footer>
+      <Button label="No" icon="pi pi-times" text @click="delete{{ table_pascal_case }}sDialog = false"/>
+      <Button label="Yes" icon="pi pi-check" text @click="deleteSelected{{ table_pascal_case }}s"/>
+    </template>
+  </Dialog>
+</template>
+
+<script setup>
+import { ref, onMounted, watch } from 'vue';
+import { use{{ table_pascal_case }}Store } from '@/stores/{{ table_snake_case }}Store.js';
+import { FilterMatchMode } from 'primevue/api';
+import { useToast } from 'primevue/usetoast';
+
+const toast = useToast();
+const store = use{{ table_pascal_case }}Store();
+const dt = ref(null);
+const {{ table_snake_case | pluralize }} = ref([]);
+const {{ table_snake_case }}Dialog = ref(false);
+const delete{{ table_pascal_case }}Dialog = ref(false);
+const delete{{ table_pascal_case }}sDialog = ref(false);
+const new{{ table_pascal_case }} = ref({});
+const selected{{ table_pascal_case }}s = ref(null);
+const filters = ref({});
+const submitted = ref(false);
+
+onMounted(async () => {
+  await store.fetch{{ table_pascal_case }}s();
+  {{ table_snake_case | pluralize }}.value = store.get{{ table_pascal_case }}s;
+});
+
+watch(() => store.get{{ table_pascal_case }}s, (newVal) => {
+  {{ table_snake_case | pluralize }}.value = newVal;
+});
+
+const openNew = () => {
+  new{{ table_pascal_case }}.value = {
+    {% for column in columns %}
+    {{ column.name | snake_case }}: {{ CRUDApiGenerator._get_vue_form_initial_value(column) }},
+    {% endfor %}
+  };
+  submitted.value = false;
+  {{ table_snake_case }}Dialog.value = true;
+};
+
+const hideDialog = () => {
+  {{ table_snake_case }}Dialog.value = false;
+  submitted.value = false;
+};
+
+const save{{ table_pascal_case }} = async () => {
+  submitted.value = true;
+  if (new{{ table_pascal_case }}.value.{{ pk_name | snake_case }}) {
+    // Update existing
+    await store.update{{ table_pascal_case }}(new{{ table_pascal_case }}.value.{{ pk_name | snake_case }}, new{{ table_pascal_case }}.value);
+    toast.add({severity:'success', summary: 'Successful', detail: '{{ table_pascal_case }} Updated', life: 3000});
+  } else {
+    // Create new
+    await store.create{{ table_pascal_case }}(new{{ table_pascal_case }}.value);
+    toast.add({severity:'success', summary: 'Successful', detail: '{{ table_pascal_case }} Created', life: 3000});
+  }
+  {{ table_snake_case }}Dialog.value = false;
+  new{{ table_pascal_case }}.value = {};
+};
+
+const edit{{ table_pascal_case }} = (prod) => {
+  new{{ table_pascal_case }}.value = {...prod};
+  {{ table_snake_case }}Dialog.value = true;
+};
+
+const confirmDelete{{ table_pascal_case }} = (prod) => {
+  new{{ table_pascal_case }}.value = prod;
+  delete{{ table_pascal_case }}Dialog.value = true;
+};
+
+const delete{{ table_pascal_case }} = async () => {
+  await store.delete{{ table_pascal_case }}(new{{ table_pascal_case }}.value.{{ pk_name | snake_case }});
+  delete{{ table_pascal_case }}Dialog.value = false;
+  {{ table_snake_case }}.value = {{ table_snake_case }}.value.filter(val => val.{{ pk_name | snake_case }} !== new{{ table_pascal_case }}.value.{{ pk_name | snake_case }});
+  toast.add({severity:'success', summary: 'Successful', detail: '{{ table_pascal_case }} Deleted', life: 3000});
+  new{{ table_pascal_case }}.value = {};
+};
+
+const exportCSV = () => {
+  dt.value.exportCSV();
+};
+
+const confirmDeleteSelected = () => {
+  delete{{ table_pascal_case }}sDialog.value = true;
+};
+
+const deleteSelected{{ table_pascal_case }}s = async () => {
+  for (const prod of selected{{ table_pascal_case }}s.value) {
+    await store.delete{{ table_pascal_case }}(prod.{{ pk_name | snake_case }});
+  }
+  {{ table_snake_case | pluralize }}.value = {{ table_snake_case | pluralize }}.value.filter(val => !selected{{ table_pascal_case }}s.value.includes(val));
+  delete{{ table_pascal_case }}sDialog.value = false;
+  selected{{ table_pascal_case }}s.value = null;
+  toast.add({severity:'success', summary: 'Successful', detail: 'Selected {{ table_pascal_case }}s Deleted', life: 3000});
+};
+
+const initFilters = () => {
+  filters.value = {
+    'global': {value: null, matchMode: FilterMatchMode.CONTAINS},
+  };
+};
+
+initFilters();
+</script>
+
+<style scoped>
+/* Add your component-specific styles here */
+</style>

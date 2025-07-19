@@ -1,0 +1,92 @@
+# Frontend Application
+
+This project provides a dynamic and interactive frontend application built with **Vue 3**, styled with **PrimeVue** components, and managed with **Pinia** for state management. It's built using **Vite** for a fast development experience.
+
+## Features
+
+* **Vue 3**: Progressive JavaScript framework for building user interfaces.
+* **PrimeVue**: A rich set of UI components for Vue.js, providing a professional and responsive design.
+* **Pinia**: The official state management library for Vue.js.
+* **Vue Router**: For declarative routing within the single-page application.
+* **Vite**: Next-generation frontend tooling for a blazing fast development setup.
+* **SBAdmin/Material Design Layout**: Provides a clean, responsive, and consistent administrative panel look and feel.
+* **CRUD Interfaces**: Dedicated views for each database table, enabling Create, Read, Update, and Delete operations.
+* **Vitest Unit Tests**: Automated unit tests for Vue components and Pinia stores.
+
+## Setup
+
+Follow these steps to get your frontend application up and running.
+
+### Prerequisites
+
+* Node.js (LTS version recommended)
+* npm or Yarn package manager
+
+### Installation
+
+1.  **Navigate to your `frontend` directory:**
+
+    ```bash
+    cd frontend
+    ```
+
+2.  **Install Node.js dependencies:**
+
+    ```bash
+    npm install # or yarn install
+    ```
+
+### Running the Application
+
+1.  **Start the development server:**
+
+    ```bash
+    npm run dev # or yarn dev
+    ```
+
+    The application will typically be available at `http://localhost:5173`.
+
+    * Ensure your backend API is running concurrently for full functionality.
+
+### Building for Production
+
+To build the application for production deployment:
+
+```bash
+npm run build # or yarn build
+```
+
+This command will compile and minify your application into the `dist/` directory, ready for deployment.
+
+### Project Structure
+
+* `src/`: Main application source code
+    * `views/`: Vue components representing full pages (e.g., `UserView.vue`).
+    * `components/`: Reusable smaller Vue components.
+    * `router/`: Vue Router configuration.
+    * `store/`: Pinia state management modules.
+    * `services/`: API client services for interacting with the backend.
+    * `tests/`: Vitest unit tests.
+    * `App.vue`: The main application layout.
+    * `main.js`: The application's entry point.
+* `public/`: Static assets (e.g., `index.html`, `favicon.ico`).
+* `package.json`: Project metadata and dependencies.
+
+## Available Scripts
+
+In the project directory, you can run:
+
+* `npm run dev`: Runs the app in development mode.
+* `npm run build`: Builds the app for production to the `dist` folder.
+* `npm run preview`: Serves the `dist` folder in production mode.
+* `npm run test:unit`: Runs unit tests with Vitest.
+
+## Testing
+
+Unit tests are generated using `Vitest`.
+
+1.  **Ensure all Node.js dependencies are installed.**
+2.  **Run tests from the `frontend/` directory:**
+    ```bash
+    npm run test:unit # or yarn test:unit
+    ```

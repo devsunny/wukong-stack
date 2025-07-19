@@ -1,0 +1,19 @@
+import { createRouter, createWebHistory } from 'vue-router';
+{% for router_import in router_imports %}
+{{ router_import }}
+{% endfor %}
+
+const routes = [
+  { path: '/', redirect: '/dashboard' }, // Redirect root to a dashboard or first table
+  { path: '/dashboard', name: 'dashboard', component: { template: '<div>Dashboard Content</div>' } }, // Placeholder dashboard
+  {% for route in router_routes %}
+  {{ route }},
+  {% endfor %}
+];
+
+const router = createRouter({
+  history: createWebHistory(import.meta.env.BASE_URL),
+  routes,
+});
+
+export default router;

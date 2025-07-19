@@ -2,7 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 
-from .config import settings
+from {% if root_module_name %}.{% endif %}config import settings
 import os
 
 # Determine the database URL based on the selected db_type

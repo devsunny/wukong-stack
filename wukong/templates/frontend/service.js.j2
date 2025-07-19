@@ -1,0 +1,27 @@
+import axios from 'axios';
+
+const API_URL = import.meta.env.VITE_APP_BACKEND_API_URL || '{{ backend_api_url }}';
+
+const {{ table_snake_case | pluralize }}Api = axios.create({
+  baseURL: `${API_URL}/{{ CRUDApiGenerator._get_api_endpoint_path(table) }}`,
+});
+
+export const getAll{{ table_pascal_case }}s = () => {
+  return {{ table_snake_case | pluralize }}Api.get('/');
+};
+
+export const get{{ table_pascal_case }}ById = (id) => {
+  return {{ table_snake_case | pluralize }}Api.get(`/${id}`);
+};
+
+export const create{{ table_pascal_case }} = ({{ table_snake_case }}Data) => {
+  return {{ table_snake_case | pluralize }}Api.post('/', {{ table_snake_case }}Data);
+};
+
+export const update{{ table_pascal_case }} = (id, {{ table_snake_case }}Data) => {
+  return {{ table_snake_case | pluralize }}Api.put(`/${id}`, {{ table_snake_case }}Data);
+};
+
+export const delete{{ table_pascal_case }} = (id) => {
+  return {{ table_snake_case | pluralize }}Api.delete(`/${id}`);
+};

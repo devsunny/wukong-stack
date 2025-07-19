@@ -1,9 +1,10 @@
 from sqlalchemy.orm import Session, selectinload
-from ..models.{{ table_snake_case }} import {{ table_pascal_case }}
-from ..schemas.{{ table_snake_case }} import {{ table_pascal_case }}Create, {{ table_pascal_case }}Update, {{ table_pascal_case }}Read
-from typing import List, Optional
+from sqlalchemy import and_ # Import and_ for composite keys
+from {% if root_module_name %}..{% endif %}models.{{ table_snake_case }} import {{ table_pascal_case }}
+from {% if root_module_name %}..{% endif %}schemas.{{ table_snake_case }} import {{ table_pascal_case }}Create, {{ table_pascal_case }}Update, {{ table_pascal_case }}Read
+from typing import List, Optional, Any
 
-def get_{{ table_snake_case }}(db: Session, {{ CRUDApiGenerator._get_pk_name(table) | snake_case }}: {{ CRUDApiGenerator._get_pk_type(table) }}, eager_load_relations: bool = False) -> Optional[{{ table_pascal_case }}]:
+def get_{{ table_snake_case }}(db: Session, {% for column in pk_columns %}{{ column.name | snake_case }}: {{ utils.get_python_type(column) }}{% if not loop.last %}, {% endif %}{% endfor %}, eager_load_relations: bool = False) -> Optional[{{ table_pascal_case }}]:
     """
     Retrieve a single {{ table_snake_case }} by its primary key.
     If eager_load_relations is True, direct one-to-many relationships are loaded.
@@ -19,7 +20,16 @@ def get_{{ table_snake_case }}(db: Session, {{ CRUDApiGenerator._get_pk_name(tab
         {% endfor %}
     {% endif %}
     {% endfor %}
-    return query.filter({{ table_pascal_case }}.{{ CRUDApiGenerator._get_pk_name(table) | snake_case }} == {{ CRUDApiGenerator._get_pk_name(table) | snake_case }}).first()
+    
+    {% if is_composite_pk %}
+    return query.filter(and_(
+        {% for column in pk_columns %}
+        {{ table_pascal_case }}.{{ column.name | snake_case }} == {{ column.name | snake_case }}{% if not loop.last %},{% endif %}
+        {% endfor %}
+    )).first()
+    {% else %}
+    return query.filter({{ table_pascal_case }}.{{ pk_name | snake_case }} == {{ pk_name | snake_case }}).first()
+    {% endif %}
 
 def get_all_{{ table_snake_case | pluralize }}(db: Session, skip: int = 0, limit: int = 100, eager_load_relations: bool = False) -> List[{{ table_pascal_case }}]:
     """
@@ -49,11 +59,20 @@ def create_{{ table_snake_case }}(db: Session, {{ table_snake_case }}: {{ table_
     db.refresh(db_{{ table_snake_case }})
     return db_{{ table_snake_case }}
 
-def update_{{ table_snake_case }}(db: Session, {{ CRUDApiGenerator._get_pk_name(table) | snake_case }}: {{ CRUDApiGenerator._get_pk_type(table) }}, {{ table_snake_case }}_update: {{ table_pascal_case }}Update) -> Optional[{{ table_pascal_case }}Read]:
+def update_{{ table_snake_case }}(db: Session, {% for column in pk_columns %}{{ column.name | snake_case }}: {{  utils.get_python_type(column) }}{% if not loop.last %}, {% endif %}{% endfor %}, {{ table_snake_case }}_update: {{ table_pascal_case }}Update) -> Optional[{{ table_pascal_case }}Read]:
     """
     Update an existing {{ table_snake_case }} record.
     """
-    db_{{ table_snake_case }} = db.query({{ table_pascal_case }}).filter({{ table_pascal_case }}.{{ CRUDApiGenerator._get_pk_name(table) | snake_case }} == {{ CRUDApiGenerator._get_pk_name(table) | snake_case }}).first()
+    {% if is_composite_pk %}
+    db_{{ table_snake_case }} = db.query({{ table_pascal_case }}).filter(and_(
+        {% for column in pk_columns %}
+        {{ table_pascal_case }}.{{ column.name | snake_case }} == {{ column.name | snake_case }}{% if not loop.last %},{% endif %}
+        {% endfor %}
+    )).first()
+    {% else %}
+    db_{{ table_snake_case }} = db.query({{ table_pascal_case }}).filter({{ table_pascal_case }}.{{ pk_name | snake_case }} == {{ pk_name | snake_case }}).first()
+    {% endif %}
+
     if not db_{{ table_snake_case }}:
         return None
     
@@ -64,11 +83,19 @@ def update_{{ table_snake_case }}(db: Session, {{ CRUDApiGenerator._get_pk_name(
     db.refresh(db_{{ table_snake_case }})
     return db_{{ table_snake_case }}
 
-def delete_{{ table_snake_case }}(db: Session, {{ CRUDApiGenerator._get_pk_name(table) | snake_case }}: {{ CRUDApiGenerator._get_pk_type(table) }}) -> Optional[{{ table_pascal_case }}Read]:
+def delete_{{ table_snake_case }}(db: Session, {% for column in pk_columns %}{{ column.name | snake_case }}: {{  utils.get_python_type(column) }}{% if not loop.last %}, {% endif %}{% endfor %}) -> Optional[{{ table_pascal_case }}Read]:
     """
     Delete a {{ table_snake_case }} record.
     """
-    db_{{ table_snake_case }} = db.query({{ table_pascal_case }}).filter({{ table_pascal_case }}.{{ CRUDApiGenerator._get_pk_name(table) | snake_case }} == {{ CRUDApiGenerator._get_pk_name(table) | snake_case }}).first()
+    {% if is_composite_pk %}
+    db_{{ table_snake_case }} = db.query({{ table_pascal_case }}).filter(and_(
+        {% for column in pk_columns %}
+        {{ table_pascal_case }}.{{ column.name | snake_case }} == {{ column.name | snake_case }}{% if not loop.last %},{% endif %}
+        {% endfor %}
+    )).first()
+    {% else %}
+    db_{{ table_snake_case }} = db.query({{ table_pascal_case }}).filter({{ table_pascal_case }}.{{ pk_name | snake_case }} == {{ pk_name | snake_case }}).first()
+    {% endif %}
     if not db_{{ table_snake_case }}:
         return None
     db.delete(db_{{ table_snake_case }})
