@@ -9,8 +9,8 @@ def update_version(increment_type):
 
     ver = VersionInfo.parse(data["project"]["version"])
 
-    if increment_type == "build":
-        new_ver = ver.bump_build()
+    if increment_type == "patch":
+        new_ver = ver.bump_patch
     elif increment_type == "minor":
         new_ver = ver.bump_minor()
     else:  # major
@@ -23,15 +23,15 @@ def update_version(increment_type):
 
 
 @click.command()
-def increase_build():
-    update_version("build")
+def bump_patch():
+    update_version("patch")
 
 
 @click.command()
-def increase_minor():
+def bump_minor():
     update_version("minor")
 
 
 @click.command()
-def increase_major():
+def bump_major():
     update_version("major")

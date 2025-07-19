@@ -36,6 +36,14 @@ WukongStack is a dynamic CLI tool that generates a full-stack web application sk
    ```
 4. Set up the frontend:
    ```bash
+   # instal fnm nodes.js manager
+   #linux or mac
+   curl -fsSL https://fnm.vercel.app/install | bash
+   # windows
+   winget install Schniz.fnm
+
+   fnm install v23.11.1
+
    cd my_project/frontend
    npm install
    npm run dev

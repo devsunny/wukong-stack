@@ -1,7 +1,8 @@
 import os
 from typing import Dict
 from jinja2 import Environment, FileSystemLoader, select_autoescape
-import re
+from .template_utils import to_snake_case, to_pascal_case, singularize, pluralize
+from . import template_utils
 
 
 class Jinja2TemplateRender:
@@ -32,35 +33,10 @@ class Jinja2TemplateRender:
 
     def _add_jinja_filters(self):
         """Adds custom filters to the Jinja2 environment."""
-        self.env.filters["snake_case"] = self._to_snake_case
-        self.env.filters["pascal_case"] = self._to_pascal_case
-        self.env.filters["singularize"] = self._singularize
-        self.env.filters["pluralize"] = self._pluralize
-
-    def _to_snake_case(self, name: str) -> str:
-        """Converts PascalCase/CamelCase/Space-separated to snake_case."""
-        # Replace spaces with underscores first
-        name = name.replace(" ", "_")
-        s1 = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
-        return re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
-
-    def _to_pascal_case(self, name: str) -> str:
-        """Converts snake_case/kebab-case/space-separated to PascalCase."""
-        return "".join(word.capitalize() for word in re.split(r"[-_ ]", name))
-
-    def _singularize(self, name: str) -> str:
-        """Basic singularization (for schema names)."""
-        if name.endswith("s") and not name.endswith(
-            "ss"
-        ):  # Simple rule, can be improved
-            return name[:-1]
-        return name
-
-    def _pluralize(self, name: str) -> str:
-        """Basic pluralization (for router paths)."""
-        if not name.endswith("s"):  # Simple rule, can be improved
-            return name + "s"
-        return name
+        self.env.filters["snake_case"] = to_snake_case
+        self.env.filters["pascal_case"] = to_pascal_case
+        self.env.filters["singularize"] = singularize
+        self.env.filters["pluralize"] = pluralize
 
     def render_template(
         self,
@@ -70,7 +46,7 @@ class Jinja2TemplateRender:
         force_overwrite: bool = False,
     ) -> None:
         # Generate Model
-
+        context["utils"] = template_utils
         if not os.path.exists(output_file) or force_overwrite is True:
             model_template = self.env.get_template(template_name)
             model_content = model_template.render(context)
