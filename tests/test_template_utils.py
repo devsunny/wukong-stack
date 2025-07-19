@@ -764,6 +764,10 @@ def test_get_parent_tables():
     assert len(post_parents) == 1
     assert post_parents[0].name == "users"
 
+    # Test users_table parents (should have none)
+    user_parents = get_parent_tables(users_table, all_tables)
+    assert len(user_parents) == 0
+
     # Test categories_table parents (should have none)
     category_parents = get_parent_tables(categories_table, all_tables)
     assert len(category_parents) == 0

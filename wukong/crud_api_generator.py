@@ -1,8 +1,8 @@
 import os
-from typing import List, Optional, Tuple, Dict
+from typing import List, Optional
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 import re
-from pgsql_parser import Table, Column, ForeignKey  # Added as requested, commented out
+from pgsql_parser import Table
 from .template_utils import (
     to_pascal_case,
     to_snake_case,
