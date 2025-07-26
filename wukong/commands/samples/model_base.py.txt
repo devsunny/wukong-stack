@@ -1,0 +1,25 @@
+from sqlalchemy.orm import  declarative_base
+# from sqlalchemy.schema import MetaData
+
+# Recommended naming convention for SQLAlchemy tables
+# This helps with consistency and avoids issues with some databases
+# when using reflection or migrations.
+# For example, 'user_accounts' instead of 'useraccounts'.
+# NAMING_CONVENTION = {
+#     "ix": 'ix_%(column_0_label)s',
+#     "uq": "uq_%(table_name)s_%(column_0_name)s",
+#     "ck": "ck_%(table_name)s_%(constraint_name)s",
+#     "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+#     "pk": "pk_%(table_name)s"
+# }
+
+# Initialize MetaData with the naming convention
+# This metadata object will be shared across all models derived from Base
+# metadata = MetaData(naming_convention=NAMING_CONVENTION)
+
+# Create the declarative base class
+# All SQLAlchemy models will inherit from this Base
+# Base = declarative_base(metadata=metadata)
+
+Base = declarative_base()
+

@@ -1,0 +1,89 @@
+# backend/app/main.py
+
+from flask import Flask, jsonify
+from flask_restx import Api
+from .config import Config
+from .extensions import db, api as restx_api_extension # Rename 'api' to avoid conflict with Flask-RESTx's Api class
+from .errors import errors_bp
+from .api.v1.api import api_v1_bp # Import the blueprint that registers your Flask-RESTx API namespaces
+import logging
+import os
+
+
+def create_app(config_class=Config):
+    """
+    Factory function to create and configure the Flask application.
+
+    Args:
+        config_class: The configuration class to use (e.g., Config, DevelopmentConfig, ProductionConfig).
+
+    Returns:
+        Flask: The configured Flask application instance.
+    """
+    app = Flask(__name__)
+
+    # Load configuration from the provided config_class
+    app.config.from_object(config_class)
+
+    # Attempt to load instance-specific configuration if it exists.
+    # This is useful for sensitive data not committed to version control.
+    # The 'silent=True' means it won't raise an error if the file doesn't exist.
+    app.config.from_pyfile('config.py', silent=True, instance_relative_config=True)
+
+    # --- Initialize Flask Extensions ---
+    # Initialize SQLAlchemy with the app
+    db.init_app(app)
+
+    # Initialize Flask-RESTx API with the app
+    # We pass the 'api' object from extensions.py, which is an instance of Api
+    restx_api_extension.init_app(app)
+
+    # --- Register Blueprints ---
+    # Register the errors blueprint for centralized error handling
+    app.register_blueprint(errors_bp)
+
+    # Register the API blueprint (which contains all Flask-RESTx namespaces)
+    # The url_prefix ensures all API v1 endpoints start with /api/v1
+    app.register_blueprint(api_v1_bp, url_prefix='/api/v1')
+
+    # --- Configure Logging ---
+    # Basic logging configuration for development
+    if app.debug: # Or app.config.get('FLASK_ENV') == 'development'
+        logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.INFO)
+        # You might want to configure more robust logging for production,
+        # e.g., to files, syslog, or a logging service.
+        # Example: if not os.path.exists('logs'): os.mkdir('logs')
+        # file_handler = RotatingFileHandler('logs/your_project.log', maxBytes=10240, backupCount=10)
+        # file_handler.setFormatter(logging.Formatter(
+        #     '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'))
+        # app.logger.addHandler(file_handler)
+
+    # --- Context Processors (Optional) ---
+    # Example: Add something to every template context (more common in Jinja2 apps)
+    # @app.context_processor
+    # def inject_user():
+    #     return dict(user=current_user)
+
+    # --- Shell Context (Optional) ---
+    # This allows you to automatically import certain objects when running `flask shell`
+    @app.shell_context_processor
+    def make_shell_context():
+        # Import models here to make them available in the shell
+        from .models.user import User # Example model
+        return {'db': db, 'User': User}
+
+    app.logger.info('Application startup complete.')
+
+    return app
+
+# This block allows you to run the app directly using `python app.py` for development.
+# In production, you would typically use a WSGI server like Gunicorn or uWSGI
+# which would import `wsgi.py` (which then imports `create_app`).
+if __name__ == '__main__':
+    # Ensure you have FLASK_APP and FLASK_ENV set in your .flaskenv or environment
+    # e.g., FLASK_APP=backend/src/app.py
+    # e.g., FLASK_ENV=development
+    app = create_app()
+    app.run(debug=app.config.get('DEBUG', True)) # Use app.config.get('DEBUG') for consistency

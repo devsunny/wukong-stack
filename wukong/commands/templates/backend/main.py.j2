@@ -1,0 +1,61 @@
+import uvicorn
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+from {% if root_module_name %}.{% endif %}database import create_db_and_tables
+{% for router_import in router_imports %}
+{{ router_import }}
+{% endfor %}
+
+# --- FastAPI Lifespan Context Manager ---
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Context manager for application startup and shutdown events.
+    Replaces the deprecated `@app.on_event()` decorators.
+    """
+    # Startup event
+    print("Application startup sequence initiated.")
+    create_db_and_tables() # Call your table creation function here
+    yield # Application will run here
+    # Shutdown event
+    print("Application shutdown sequence initiated.")
+    # Add any cleanup logic here if necessary, e.g., closing database connections
+    # database.close_db_connection() # If you have a close function
+
+app = FastAPI(
+    lifespan=lifespan,
+    title="Generated CRUD API",
+    description="Automatically generated FastAPI application with CRUD operations for your database tables.",
+    version="1.0.0",
+)
+
+{% for include_router in include_routers %}
+{{ include_router }}
+{% endfor %}
+
+@app.get("/")
+async def read_root():
+    return {"message": "Welcome to the generated FastAPI CRUD API!"}
+
+# --- Main function for direct script execution ---
+def main():
+    """
+    Main function to run the FastAPI application using Uvicorn.
+    This allows the script to be executed directly as a Python module.
+    
+    NOTE: If running this script directly (e.g., `python main.py` from the `backend` directory),
+    the `backend.main:app` string below assumes that 'backend' is a recognized Python package
+    on your PYTHONPATH or that you are executing from the directory *containing* the 'backend' folder.
+    If you encounter import errors, try running `uvicorn main:app --reload` from within the `backend` directory,
+    or ensure your project structure and PYTHONPATH are configured for package imports.
+    """
+    print("Starting Uvicorn server...")
+    uvicorn.run(
+        "backend.main:app", # Changed to fully qualified package name as requested
+        host="0.0.0.0", # Listen on all available network interfaces
+        port=8000,     # Default port for FastAPI
+        reload=True    # Enable auto-reloading on code changes (for development)
+    )
+
+if __name__ == "__main__":
+    main()

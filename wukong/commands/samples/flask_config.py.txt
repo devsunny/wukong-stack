@@ -1,0 +1,83 @@
+import os
+from datetime import timedelta
+
+basedir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
+
+
+class Config:
+    SECRET_KEY = (
+        os.environ.get("SECRET_KEY")
+        or "a_very_secret_default_key_that_should_be_changed"
+    )
+    DEBUG = False
+    TESTING = False
+    ENV = "production"
+
+    SQLALCHEMY_DATABASE_URI = os.environ.get(
+        "DATABASE_URL"
+    ) or "sqlite:///" + os.path.join(basedir, "app.db")
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+    SWAGGER_UI_DOC_EXPANSION = "list"
+    RESTX_MASK_SWAGGER = False
+    RESTX_ERROR_404_HELP = False
+
+    JWT_SECRET_KEY = (
+        os.environ.get("JWT_SECRET_KEY") or "another_super_secret_jwt_key_for_testing"
+    )
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=15)
+    JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
+
+
+class DevelopmentConfig(Config):
+    DEBUG = True
+    ENV = "development"
+    SQLALCHEMY_DATABASE_URI = os.environ.get(
+        "DEV_DATABASE_URL"
+    ) or "sqlite:///" + os.path.join(basedir, "dev.db")
+    SWAGGER_UI_DOC_EXPANSION = "full"
+    RESTX_MASK_SWAGGER = False
+    LOG_LEVEL = "DEBUG"
+
+
+class TestingConfig(Config):
+    TESTING = True
+    DEBUG = True
+    ENV = "testing"
+    SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    LOG_LEVEL = "INFO"
+
+
+class ProductionConfig(Config):
+    DEBUG = False
+    TESTING = False
+    ENV = "production"
+
+    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
+    if SQLALCHEMY_DATABASE_URI is None:
+        raise ValueError(
+            "DATABASE_URL environment variable is not set for ProductionConfig."
+        )
+
+    if Config.SECRET_KEY == "a_very_secret_default_key_that_should_be_changed":
+        raise ValueError(
+            "SECRET_KEY environment variable is not set for ProductionConfig."
+        )
+
+    if Config.JWT_SECRET_KEY == "another_super_secret_jwt_key_for_testing":
+        raise ValueError(
+            "JWT_SECRET_KEY environment variable is not set for ProductionConfig."
+        )
+
+    SWAGGER_UI_DOC_EXPANSION = "none"
+    RESTX_MASK_SWAGGER = True
+    LOG_LEVEL = "INFO"
+
+
+config_by_name = {
+    "development": DevelopmentConfig,
+    "testing": TestingConfig,
+    "production": ProductionConfig,
+    "default": DevelopmentConfig,
+}

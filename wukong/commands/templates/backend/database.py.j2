@@ -1,0 +1,41 @@
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.declarative import declarative_base
+
+from {% if root_module_name %}.{% endif %}config import settings
+import os
+
+# Determine the database URL based on the selected db_type
+{% if db_type == "sqlite" %}
+SQLALCHEMY_DATABASE_URL = "sqlite:///./sql_app.db"
+# For SQLite, connect_args are needed for proper multi-threading in FastAPI
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}, echo=True
+)
+{% else %}
+SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL
+engine = create_engine(SQLALCHEMY_DATABASE_URL, echo=True)
+{% endif %}
+
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+Base = declarative_base()
+
+def get_db():
+    """Dependency to get a database session."""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+def create_db_and_tables():
+    """Creates all defined tables in the database."""
+    Base.metadata.create_all(bind=engine)
+
+if __name__ == "__main__":
+    # This block is for local testing/setup
+    # You might want to run this once to create your database tables
+    print("Creating database tables...")
+    create_db_and_tables()
+    print("Tables created successfully.")

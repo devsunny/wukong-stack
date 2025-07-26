@@ -1,0 +1,36 @@
+# backend/app/extensions.py
+
+from flask_sqlalchemy import SQLAlchemy
+from flask_restx import Api
+# from flask_jwt_extended import JWTManager # If you add Flask-JWT-Extended later
+
+# Initialize Flask extensions without binding them to an app yet.
+# This allows for the application factory pattern where the app instance
+# is created dynamically (e.g., in create_app()).
+
+# SQLAlchemy ORM
+db = SQLAlchemy()
+
+# Flask-RESTx API
+# 'doc=/swagger-ui' sets the path for the Swagger UI documentation.
+# 'version' and 'title' are for the API documentation.
+# We also set some default metadata here.
+api = Api(
+    version='1.0',
+    title='Your Project API',
+    description='A RESTful API for Your Project',
+    doc='/swagger-ui'
+)
+
+# JWT Manager (uncomment and use if you implement JWT authentication)
+# jwt = JWTManager()
+
+
+# You can define common initialization functions for extensions here if needed,
+# though 'init_app' is the standard way with app factories.
+
+# Example of a helper to initialize all extensions (optional, can be done in app.py directly)
+# def init_extensions(app):
+#     db.init_app(app)
+#     api.init_app(app)
+#     # jwt.init_app(app)

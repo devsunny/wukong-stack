@@ -1,0 +1,85 @@
+<template>
+  <div class="card">
+    <h2>{{ table_pascal_case }} Form</h2>
+    <form @submit.prevent="handleSubmit">
+      {% for column in columns %}
+      <div class="p-field mb-3">
+        <label for="{{ column.name | snake_case }}" class="block text-900 font-medium mb-2">{{ column.name | pascal_case }}</label>
+        {% if CRUDApiGenerator._is_text_area(column) %}
+        <Textarea :id="`{{ column.name | snake_case }}`" v-model="formData.{{ column.name | snake_case }}" rows="3" class="w-full" />
+        {% elif CRUDApiGenerator._is_checkbox(column) %}
+        <Checkbox :id="`{{ column.name | snake_case }}`" v-model="formData.{{ column.name | snake_case }}" :binary="true" />
+        {% else %}
+        <InputText 
+          :id="`{{ column.name | snake_case }}`" 
+          v-model="formData.{{ column.name | snake_case }}" 
+          {% if CRUDApiGenerator._get_vue_model_type(column) == 'number' %}@input="formData.{{ column.name | snake_case }} = parseFloat($event.target.value)"{% endif %}
+          :type="CRUDApiGenerator._js_form_input_type(column)" 
+          class="w-full" 
+        />
+        {% endif %}
+      </div>
+      {% endfor %}
+
+      <Button type="submit" label="Save" class="p-button-primary mr-2" />
+      <Button label="Cancel" class="p-button-secondary" @click="handleCancel" />
+    </form>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { useToast } from 'primevue/usetoast';
+import { use{{ table_pascal_case }}Store } from '@/stores/{{ table_snake_case }}Store.js';
+
+const route = useRoute();
+const router = useRouter();
+const toast = useToast();
+const store = use{{ table_pascal_case }}Store();
+
+const formData = ref({
+  {% for column in columns %}
+  {{ column.name | snake_case }}: {{ CRUDApiGenerator._get_vue_form_initial_value(column) }},
+  {% endfor %}
+});
+
+const isEditMode = ref(false);
+
+onMounted(async () => {
+  const {{ pk_name | snake_case }} = route.params.{{ pk_name | snake_case }};
+  if ({{ pk_name | snake_case }}) {
+    isEditMode.value = true;
+    const {{ table_snake_case }}Data = await store.fetch{{ table_pascal_case }}ById({{ pk_name | snake_case }});
+    if ({{ table_snake_case }}Data) {
+      formData.value = { ...{{ table_snake_case }}Data };
+    } else {
+      toast.add({severity:'error', summary: 'Error', detail: '{{ table_pascal_case }} not found', life: 3000});
+      router.push('/{{ get_api_endpoint_path(table) }}');
+    }
+  }
+});
+
+const handleSubmit = async () => {
+  try {
+    if (isEditMode.value) {
+      await store.update{{ table_pascal_case }}(route.params.{{ pk_name | snake_case }}, formData.value);
+      toast.add({severity:'success', summary: 'Success', detail: '{{ table_pascal_case }} updated successfully!', life: 3000});
+    } else {
+      await store.create{{ table_pascal_case }}(formData.value);
+      toast.add({severity:'success', summary: 'Success', detail: '{{ table_pascal_case }} created successfully!', life: 3000});
+    }
+    router.push('/{{ get_api_endpoint_path(table) }}');
+  } catch (error) {
+    toast.add({severity:'error', summary: 'Error', detail: 'Failed to save {{ table_snake_case }}: ' + error.message, life: 3000});
+  }
+};
+
+const handleCancel = () => {
+  router.push('/{{ get_api_endpoint_path(table) }}');
+};
+</script>
+
+<style scoped>
+/* Add your component-specific styles here */
+</style>

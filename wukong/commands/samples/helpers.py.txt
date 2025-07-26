@@ -1,0 +1,80 @@
+# backend/src/helpers.py
+
+import datetime
+import pytz
+from functools import wraps
+from flask import jsonify, request, current_app
+from werkzeug.security import generate_password_hash, check_password_hash
+
+# Example 1: Date/Time helper
+def get_current_utc_time():
+    """Returns the current time in UTC with timezone information."""
+    return datetime.datetime.now(pytz.utc)
+
+def format_datetime_iso(dt_obj):
+    """Formats a datetime object to ISO 8601 string."""
+    if not dt_obj:
+        return None
+    # Ensure timezone info is present, if not, assume UTC and localize
+    if dt_obj.tzinfo is None:
+        dt_obj = pytz.utc.localize(dt_obj)
+    return dt_obj.isoformat()
+
+# Example 2: Password hashing helper (though often integrated into User model)
+def hash_password(password):
+    """Hashes a plain-text password."""
+    return generate_password_hash(password)
+
+def verify_password(hashed_password, password):
+    """Verifies a plain-text password against a hashed one."""
+    return check_password_hash(hashed_password, password)
+
+# Example 3: Simple API response helper (for consistent responses)
+def success_response(data=None, message="Success", status_code=200):
+    """Generates a consistent successful API response."""
+    response = {
+        "status": "success",
+        "message": message,
+        "data": data
+    }
+    return jsonify(response), status_code
+
+def error_response(message="An error occurred", status_code=500, errors=None):
+    """Generates a consistent error API response."""
+    response = {
+        "status": "error",
+        "message": message,
+        "errors": errors if errors else []
+    }
+    return jsonify(response), status_code
+
+# Example 4: Simple decorator for admin-only access (if not using Flask-JWT-Extended roles)
+# Note: For real-world apps, use proper JWT claims/roles for authorization.
+def admin_required(f):
+    """Decorator to restrict access to admin users only."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # This is a very basic example. In a real app, you'd check JWT claims.
+        # For simplicity, let's assume current_user object is available via some context
+        # or that a user ID can be retrieved from a token (e.g., from request headers)
+        # and then checked against the database for admin status.
+        
+        # This example assumes you have a way to get the current user object or their admin status.
+        # For instance, if you're using Flask-JWT-Extended, you'd do:
+        # from flask_jwt_extended import get_jwt_identity
+        # from .models.user import User # Assuming User model is available
+        # current_user_id = get_jwt_identity()
+        # current_user = User.query.get(current_user_id)
+        
+        # For this generic example, let's just raise a forbidden error.
+        current_app.logger.warning("Admin required decorator used without actual admin check logic.")
+        return error_response("Forbidden: Admin access required.", 403)
+    return decorated_function
+
+# You would integrate these into your application as needed.
+# For instance, in an API resource:
+# from .helpers import success_response, error_response
+# @user_ns.route('/ping')
+# class Ping(Resource):
+#     def get(self):
+#         return success_response(message="Pong!")

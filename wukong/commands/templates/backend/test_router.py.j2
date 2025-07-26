@@ -1,0 +1,157 @@
+import pytest
+from httpx import AsyncClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
+from {% if root_module_name %}..{% endif %}main import app
+from {% if root_module_name %}..{% endif %}database import Base, get_db
+from {% if root_module_name %}..{% endif %}models.{{ table_snake_case }} import {{ table_pascal_case }}
+
+# Use an in-memory SQLite database for testing
+SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
+
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL,
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
+)
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+@pytest.fixture(name="test_db")
+def test_db_fixture():
+    """
+    Fixture for a test database session.
+    Creates tables before tests, drops them after.
+    """
+    Base.metadata.create_all(bind=engine)
+    db = TestingSessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+        Base.metadata.drop_all(bind=engine)
+
+@pytest.fixture(name="test_client")
+def test_client_fixture(test_db):
+    """
+    Fixture for a test FastAPI client.
+    Overrides the get_db dependency to use the test database.
+    """
+    def override_get_db():
+        try:
+            yield test_db
+        finally:
+            test_db.close()
+    
+    app.dependency_overrides[get_db] = override_get_db
+    with AsyncClient(app=app, base_url="http://test") as client:
+        yield client
+    app.dependency_overrides = {} # Clear overrides after test
+
+# Sample data for testing
+sample_{{ table_snake_case }}_data = {
+    {% for column in columns %}
+    {% if not column.is_primary %}
+    "{{ column.name | snake_case }}": {{ utils.get_default_value_for_type(column) }},
+    {% endif %}
+    {% endfor %}
+    {% for column in pk_columns %}
+    {% if not utils.is_auto_generated_pk(column) %}
+    "{{ column.name | snake_case }}": {{ utils.get_default_value_for_type(column) | replace('_test', '_pk_test') }},
+    {% endif %}
+    {% endfor %}
+}
+
+updated_{{ table_snake_case }}_data = {
+    {% for column in columns %}
+    {% if not column.is_primary %}
+    "{{ column.name | snake_case }}": {{ utils.get_default_value_for_type(column) | replace('_test', '_updated') | replace('1', '2') | replace('1.0', '2.0') | replace('2024-01-01', '2024-01-02') | replace('12:00:00Z', '13:00:00Z') }},
+    {% endif %}
+    {% endfor %}
+}
+
+
+@pytest.mark.asyncio
+async def test_create_{{ table_snake_case }}(test_client):
+    """Test creating a new {{ table_snake_case }}."""
+    response = await test_client.post("/" + "{{ table_snake_case | pluralize }}", json=sample_{{ table_snake_case }}_data)
+    assert response.status_code == 201
+    data = response.json()
+    {% for column in pk_columns %}
+    assert data["{{ column.name | snake_case }}"] is not None
+    {% endfor %}
+    {% for column in columns %}
+    {% if not column.is_primary %}
+    assert data["{{ column.name | snake_case }}"] == sample_{{ table_snake_case }}_data["{{ column.name | snake_case }}"]
+    {% endif %}
+    {% endfor %}
+
+@pytest.mark.asyncio
+async def test_read_all_{{ table_snake_case | pluralize }}(test_client):
+    """Test reading all {{ table_snake_case | pluralize }}."""
+    await test_client.post("/" + "{{ table_snake_case | pluralize }}", json=sample_{{ table_snake_case }}_data)
+    response = await test_client.get("/" + "{{ table_snake_case | pluralize }}")
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
+    assert len(response.json()) > 0
+
+@pytest.mark.asyncio
+async def test_read_single_{{ table_snake_case }}(test_client):
+    """Test reading a single {{ table_snake_case }} by ID."""
+    create_response = await test_client.post("/" + "{{ table_snake_case | pluralize }}", json=sample_{{ table_snake_case }}_data)
+    created_data = create_response.json()
+    
+    pk_url_path = {{ utils.get_pk_test_url_str(table) }}
+    
+    response = await test_client.get("/" + "{{ table_snake_case | pluralize }}" + "/" + pk_url_path)
+    assert response.status_code == 200
+    data = response.json()
+    {% for column in pk_columns %}
+    assert data["{{ column.name | snake_case }}"] == created_data["{{ column.name | snake_case }}"]
+    {% endfor %}
+    {% for column in columns %}
+    {% if not column.is_primary %}
+    assert data["{{ column.name | snake_case }}"] == sample_{{ table_snake_case }}_data["{{ column.name | snake_case }}"]
+    {% endif %}
+    {% endfor %}
+
+@pytest.mark.asyncio
+async def test_update_{{ table_snake_case }}(test_client):
+    """Test updating an existing {{ table_snake_case }}."""
+    create_response = await test_client.post("/" + "{{ table_snake_case | pluralize }}", json=sample_{{ table_snake_case }}_data)
+    created_data = create_response.json()
+
+    pk_url_path = {{ utils.get_pk_test_url_str(table) }}
+
+    response = await test_client.put("/" + "{{ table_snake_case | pluralize }}" + "/" + pk_url_path, json=updated_{{ table_snake_case }}_data)
+    assert response.status_code == 200
+    data = response.json()
+    {% for column in pk_columns %}
+    assert data["{{ column.name | snake_case }}"] == created_data["{{ column.name | snake_case }}"] # PKs should not change on update
+    {% endfor %}
+    {% for column in columns %}
+    {% if not column.is_primary %}
+    assert data["{{ column.name | snake_case }}"] == updated_{{ table_snake_case }}_data["{{ column.name | snake_case }}"]
+    {% endif %}
+    {% endfor %}
+
+@pytest.mark.asyncio
+async def test_delete_{{ table_snake_case }}(test_client):
+    """
+    Delete a {{ table_snake_case }} record.
+    """
+    create_response = await test_client.post("/" + "{{ table_snake_case | pluralize }}", json=sample_{{ table_snake_case }}_data)
+    created_data = create_response.json()
+
+    pk_url_path = {{ utils.get_pk_test_url_str(table) }}
+
+    response = await test_client.delete("/" + "{{ table_snake_case | pluralize }}" + "/" + pk_url_path)
+    assert response.status_code == 200
+    {% for column in pk_columns %}
+    assert response.json()["{{ column.name | snake_case }}"] == created_data["{{ column.name | snake_case }}"]
+    {% endfor %}
+
+    # Verify it's deleted
+    get_response = await test_client.get("/" + "{{ table_snake_case | pluralize }}" + "/" + pk_url_path)
+    assert get_response.status_code == 404

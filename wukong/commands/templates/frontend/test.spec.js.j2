@@ -1,0 +1,135 @@
+import { mount } from '@vue/test-utils';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import {{ table_pascal_case }}View from '@/views/{{ table_pascal_case }}View.vue';
+import { createPinia, setActivePinia } from 'pinia';
+import {{ table_pascal_case }}Service from '@/services/{{ table_snake_case }}Service';
+import PrimeVue from 'primevue/config';
+import ToastService from 'primevue/toastservice';
+import { useToast } from 'primevue/usetoast';
+
+// Mock the service
+vi.mock('@/services/{{ table_snake_case }}Service', () => ({
+  default: {
+    getAll: vi.fn(() => Promise.resolve({ data: [] })),
+    get: vi.fn(() => Promise.resolve({ data: {} })),
+    create: vi.fn(() => Promise.resolve({ data: {} })),
+    update: vi.fn(() => Promise.resolve({ data: {} })),
+    delete: vi.fn(() => Promise.resolve()),
+  },
+}));
+
+// Mock PrimeVue useToast
+vi.mock('primevue/usetoast', () => ({
+  useToast: vi.fn(() => ({
+    add: vi.fn(),
+  })),
+}));
+
+describe('{{ table_pascal_case }}View', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    vi.clearAllMocks();
+  });
+
+  const createWrapper = () => mount({{ table_pascal_case }}View, {
+    global: {
+      plugins: [PrimeVue, ToastService],
+      stubs: {
+        Card: true,
+        DataTable: true,
+        Column: true,
+        Button: true,
+        Dialog: true,
+        InputText: true,
+        Toast: true,
+      },
+    },
+  });
+
+  it('renders without crashing', () => {
+    const wrapper = createWrapper();
+    expect(wrapper.exists()).toBe(true);
+  });
+
+  it('fetches {{ table_snake_case | pluralize }} on mount', async () => {
+    const mockData = [{ {{ pk_name | snake_case }}: 1, {% for column in columns %}{% if not column.is_primary %}{{ column.name | snake_case }}: {{ column | get_default_js_value_for_type }}{% if not loop.last %}, {% endif %}{% endif %}{% endfor %} }];
+    {{ table_pascal_case }}Service.getAll.mockResolvedValueOnce({ data: mockData });
+
+    const wrapper = createWrapper();
+    await vi.nextTick(); // Wait for onMounted hook to run
+
+    expect({{ table_pascal_case }}Service.getAll).toHaveBeenCalledTimes(1);
+    // Assert that the store's state is updated (requires accessing the store directly or checking rendered data)
+    // For simplicity, we'll rely on the service mock being called.
+  });
+
+  it('opens new dialog and resets item', async () => {
+    const wrapper = createWrapper();
+    await wrapper.find('button.p-button-success').trigger('click'); // Click 'New {{ table_pascal_case }}' button
+
+    expect(wrapper.vm.displayDialog).toBe(true);
+    expect(wrapper.vm.editMode).toBe(false);
+    {% for column in columns %}
+    {% if not column.is_primary %}
+    expect(wrapper.vm.editItem.{{ column.name | snake_case }}).toBe({{ 'null' if column.nullable else '""' }});
+    {% endif %}
+    {% endfor %}
+  });
+
+  it('saves a new {{ table_snake_case }}', async () => {
+    const wrapper = createWrapper();
+    const mockNewItem = { {% for column in columns %}{% if not column.is_primary %}{{ column.name | snake_case }}: {{ column | get_default_js_value_for_type }}{% if not loop.last %}, {% endif %}{% endif %}{% endfor %} };
+    const mockCreatedItem = { {{ pk_name | snake_case }}: 1, ...mockNewItem };
+
+    {{ table_pascal_case }}Service.create.mockResolvedValueOnce({ data: mockCreatedItem });
+    const toastSpy = useToast().add;
+
+    // Simulate opening dialog and setting data
+    wrapper.vm.openNew();
+    wrapper.vm.editItem = mockNewItem;
+    
+    await wrapper.vm.save{{ table_pascal_case }}();
+
+    expect({{ table_pascal_case }}Service.create).toHaveBeenCalledWith(mockNewItem);
+    expect(wrapper.vm.displayDialog).toBe(false);
+    expect(toastSpy).toHaveBeenCalledWith(expect.objectContaining({ severity: 'success', detail: '{{ table_pascal_case }} Created' }));
+  });
+
+  it('updates an existing {{ table_snake_case }}', async () => {
+    const wrapper = createWrapper();
+    const existingItem = { {{ pk_name | snake_case }}: 1, {% for column in columns %}{% if not column.is_primary %}{{ column.name | snake_case }}: {{ column | get_default_js_value_for_type }}{% if not loop.last %}, {% endif %}{% endif %}{% endfor %} };
+    const updatedItemData = { {% for column in columns %}{% if not column.is_primary %}{{ column.name | snake_case }}: {{ column | get_default_js_value_for_type | replace('_test', '_updated') | replace('1', '2') | replace('1.0', '2.0') | replace('2024-01-01', '2024-01-02') | replace('12:00:00Z', '13:00:00Z') }}{% if not loop.last %}, {% endif %}{% endif %}{% endfor %} };
+    const mockUpdatedItem = { {{ pk_name | snake_case }}: 1, ...updatedItemData };
+
+    {{ table_pascal_case }}Service.update.mockResolvedValueOnce({ data: mockUpdatedItem });
+    const toastSpy = useToast().add;
+
+    // Simulate editing an item
+    wrapper.vm.edit{{ table_pascal_case }}(existingItem);
+    wrapper.vm.editItem = { ...existingItem, ...updatedItemData }; // Update the item in the dialog
+
+    await wrapper.vm.save{{ table_pascal_case }}();
+
+    expect({{ table_pascal_case }}Service.update).toHaveBeenCalledWith(existingItem.{{ pk_name | snake_case }}, expect.objectContaining(updatedItemData));
+    expect(wrapper.vm.displayDialog).toBe(false);
+    expect(toastSpy).toHaveBeenCalledWith(expect.objectContaining({ severity: 'success', detail: '{{ table_pascal_case }} Updated' }));
+  });
+
+  it('deletes a {{ table_snake_case }}', async () => {
+    const wrapper = createWrapper();
+    const itemToDelete = { {{ pk_name | snake_case }}: 1, {% for column in columns %}{% if not column.is_primary %}{{ column.name | snake_case }}: {{ column | get_default_js_value_for_type }}{% if not loop.last %}, {% endif %}{% endif %}{% endfor %} };
+
+    {{ table_pascal_case }}Service.delete.mockResolvedValueOnce({});
+    const toastSpy = useToast().add;
+
+    // Simulate confirming delete
+    wrapper.vm.confirmDelete{{ table_pascal_case }}(itemToDelete);
+    expect(wrapper.vm.deleteDialog).toBe(true);
+
+    await wrapper.vm.delete{{ table_pascal_case }}();
+
+    expect({{ table_pascal_case }}Service.delete).toHaveBeenCalledWith(itemToDelete.{{ pk_name | snake_case }});
+    expect(wrapper.vm.deleteDialog).toBe(false);
+    expect(toastSpy).toHaveBeenCalledWith(expect.objectContaining({ severity: 'success', detail: '{{ table_pascal_case }} Deleted' }));
+  });
+});

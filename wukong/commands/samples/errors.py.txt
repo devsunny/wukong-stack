@@ -1,0 +1,140 @@
+# backend/app/errors.py
+
+from flask import Blueprint, jsonify, current_app
+from werkzeug.exceptions import HTTPException
+import traceback
+
+# Create a Blueprint for error handlers
+errors_bp = Blueprint("errors", __name__)
+
+# --- Custom Exception Classes (Optional but Recommended) ---
+
+
+class APIError(Exception):
+    """Base class for custom API errors."""
+
+    status_code = 500
+    message = "An unexpected error occurred."
+
+    def __init__(self, message=None, status_code=None, payload=None):
+        super().__init__()
+        if message:
+            self.message = message
+        if status_code:
+            self.status_code = status_code
+        self.payload = payload
+
+    def to_dict(self):
+        rv = dict(self.payload or ())
+        rv["message"] = self.message
+        return rv
+
+
+class BadRequestError(APIError):
+    status_code = 400
+    message = "Bad request."
+
+
+class UnauthorizedError(APIError):
+    status_code = 401
+    message = "Authentication required or invalid credentials."
+
+
+class ForbiddenError(APIError):
+    status_code = 403
+    message = "Permission denied."
+
+
+class NotFoundError(APIError):
+    status_code = 404
+    message = "Resource not found."
+
+
+class ConflictError(APIError):
+    status_code = 409
+    message = "Conflict with existing resource."
+
+
+class UnprocessableEntityError(APIError):
+    status_code = 422
+    message = "Validation error."
+
+
+# --- Error Handlers ---
+
+
+@errors_bp.app_errorhandler(HTTPException)
+def handle_http_exception(e):
+    """Handle all Werkzeug HTTP exceptions (e.g., 404, 405, 500)."""
+    current_app.logger.error(
+        f"HTTP Exception: {e.code} - {e.name}. Description: {e.description}"
+    )
+    response = {"status": "error", "code": e.code, "message": e.description or e.name}
+    return jsonify(response), e.code
+
+
+@errors_bp.app_errorhandler(APIError)
+def handle_api_error(error):
+    """Handle custom APIError exceptions."""
+    current_app.logger.error(
+        f"API Error: {error.status_code} - {error.message}. Payload: {error.payload}"
+    )
+    response = {
+        "status": "error",
+        "code": error.status_code,
+        "message": error.message,
+        "payload": error.payload,
+    }
+    return jsonify(response), error.status_code
+
+
+@errors_bp.app_errorhandler(Exception)
+def handle_general_exception(e):
+    """Handle all other unhandled exceptions."""
+    # Log the full traceback for debugging
+    current_app.logger.exception(f"Unhandled Exception: {e}")
+
+    # In production, avoid exposing detailed error messages for security
+    if current_app.config.get("FLASK_ENV") == "development":
+        message = str(e)
+        trace = traceback.format_exc()
+    else:
+        message = "An unexpected server error occurred."
+        trace = None  # Do not expose traceback in production
+
+    response = {"status": "error", "code": 500, "message": message, "trace": trace}
+    return jsonify(response), 500
+
+
+# You can add specific handlers for other common errors or library-specific errors
+# For example, a handler for SQLAlchemy errors:
+# @errors_bp.app_errorhandler(SQLAlchemyError)
+# def handle_sqlalchemy_error(e):
+#     current_app.logger.error(f"Database error: {e}")
+#     response = {
+#         "status": "error",
+#         "code": 500,
+#         "message": "A database error occurred."
+#     }
+#     return jsonify(response), 500
+
+# --- How to use these errors in your API endpoints ---
+# You would raise these exceptions in your services or API routes.
+
+# Example in an API endpoint (within api/namespaces/user_ns.py for instance)
+# from backend.src.errors import NotFoundError, BadRequestError
+
+# @ns.route('/<int:user_id>')
+# class UserResource(Resource):
+#     def get(self, user_id):
+#         user = UserService.get_user_by_id(user_id)
+#         if not user:
+#             raise NotFoundError(message=f"User with ID {user_id} not found.")
+#         return user_schema.dump(user), 200
+
+#     def put(self, user_id):
+#         data = ns.payload # or use a Pydantic schema for validation
+#         if not data.get('name'):
+#             raise BadRequestError(message="User name is required.")
+#         # ... update user logic ...
+#         return {"message": "User updated successfully"}, 200

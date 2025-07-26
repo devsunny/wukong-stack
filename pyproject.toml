@@ -36,6 +36,12 @@ dependencies = [
     "semver==3.0.4",
 ]
 
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.setuptools.package-data]
+"wukong" = ["**/*"]
+
 [project.scripts]
 wukong = "wukong.cli:cli"
 

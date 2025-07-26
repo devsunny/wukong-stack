@@ -1,0 +1,9 @@
+# .flaskenv (at the project root: your_project_name/.flaskenv)
+
+FLASK_APP=backend/src/app.py
+FLASK_ENV=development
+SECRET_KEY=your_super_secret_dev_key_change_me
+JWT_SECRET_KEY=your_jwt_dev_secret_key_change_me
+DATABASE_URL=sqlite:///./backend/app.db
+# To change the dev database filename:
+# DEV_DATABASE_URL=sqlite:///./backend/dev_data.db

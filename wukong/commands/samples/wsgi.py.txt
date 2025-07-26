@@ -1,0 +1,16 @@
+# backend/wsgi.py
+
+import os
+from .app.main import create_app
+
+# Get the Flask environment from environment variables, default to production
+# This ensures that your production configuration is loaded when deployed.
+config_name = os.environ.get('FLASK_ENV', 'production')
+
+# Create the Flask app instance
+app = create_app(config_name)
+
+# This file is typically used by WSGI servers like Gunicorn or uWSGI.
+# To run with Gunicorn (assuming you are in the project root):
+# gunicorn -w 4 -b 0.0.0.0:5000 backend.wsgi:app
+# (where -w 4 means 4 worker processes, -b specifies bind address and port)

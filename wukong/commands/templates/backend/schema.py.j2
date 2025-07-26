@@ -1,0 +1,67 @@
+from __future__ import annotations # For Pydantic v2 forward references
+from pydantic import BaseModel, Field
+from typing import Optional, List, Any
+
+{% for dt in  table | get_datatime_imports %}
+from datetime import {{dt}}
+{% endfor %}
+
+
+{% for other_table in all_tables %}
+{% if other_table.name != table.name %}
+    {% for fk in other_table.foreign_keys %}
+        {# Check if 'this' table is the referenced table (parent) for 'other_table' (child) #}
+        {% if fk.ref_table == table.name %}
+from .{{ other_table.name | singularize | snake_case }} import {{ other_table.name | singularize | pascal_case }}Read
+        {% endif %}
+    {% endfor %}
+{% endif %}
+{% endfor %}
+
+# Base Schema
+class {{ table_pascal_case }}Base(BaseModel):
+    {% for column in columns %}
+    {{ column.name | snake_case }}: {{ column | get_pydantic_type }}
+    {% endfor %}
+
+    class Config:
+        from_attributes = True # For Pydantic v2
+        populate_by_name = True # Allow field names to be populated by their alias (if any)
+
+# Create Schema
+class {{ table_pascal_case }}Create({{ table_pascal_case }}Base):
+    {% for column in columns %}
+    {% if column.is_primary and utils.is_auto_generated_pk(column) %}
+    {{ column.name | snake_case }}: Any = Field(default=None, exclude=True) # Exclude auto-generated PK from input
+    {% endif %}
+    {% endfor %}
+    pass
+
+# Update Schema
+class {{ table_pascal_case }}Update({{ table_pascal_case }}Base):
+    {% for column in columns %}
+    {% if column.is_primary %}
+    {{ column.name | snake_case }}: Optional[{{ utils.get_pydantic_type(column) }}] = Field(default=None, exclude=True) # Exclude PK from update payload, but allow for definition
+    {% else %}
+    {{ column.name | snake_case }}: Optional[{{ utils.get_pydantic_type(column) }}] = Field(default=None)
+    {% endif %}
+    {% endfor %}
+
+# Read Schema (basic, without relations)
+class {{ table_pascal_case }}Read({{ table_pascal_case }}Base):
+    {% for column in pk_columns %}
+    {{ column.name | snake_case }}: {{ utils.get_python_type(column) }}
+    {% endfor %}
+
+# Final Response Schema (includes relationships if applicable)
+class {{ table_pascal_case }}({{ table_pascal_case }}Read):
+    {% for child_table in all_tables %}
+    {% if child_table.name != table.name %}
+        {% for fk in child_table.foreign_keys %}
+            {% if fk.ref_table == table.name %}
+    {{ child_table.name | pluralize | snake_case }}_collection: List[{{ child_table.name | singularize | pascal_case }}Read] = []
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+    {% endfor %}
+    pass # No new fields needed if only inheriting and adding relationships
