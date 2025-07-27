@@ -72,6 +72,16 @@ def get_child_relationships(table: Table, tables: List[Table]) -> List[ForeignKe
     return child_relationships
 
 
+def get_pk_columns(table: Table) -> List[Column]:
+    if not table.primary_key:
+        return []
+    pk_cols = []
+    for col_name in table.primary_key.columns:
+        pk_col = table.columns.get(col_name)
+        pk_cols.append(pk_col)
+    return pk_cols
+
+
 def is_composite_foreign_key(fk: ForeignKey):
     return len(fk.columns) > 1
 
@@ -280,6 +290,16 @@ def to_singular_pascal_case(word_or_multi_words) -> str:
     if plural.lower() == last_word.lower():
         words[-1] = singular
     ret_word = "".join([wrd.lower().capitalize() for wrd in words if wrd != "_"])
+    return ret_word
+
+
+def to_decription(word_or_multi_words) -> str:
+    words = split_words(word_or_multi_words)
+    if not words:
+        raise ValueError(f"Invalid identifier [{word_or_multi_words}]")
+
+    ret_word = " ".join([wrd.lower() for wrd in words if wrd != "_"]).strip()
+    ret_word = ret_word.capitalize()
     return ret_word
 
 
@@ -501,17 +521,33 @@ def get_python_type(column: Column) -> str:
     data_type = column.data_type.lower()
     if data_type in ["varchar", "text", "char", "uuid", "json", "jsonb"]:
         return "str"
-    elif data_type in ["integer", "smallint", "bigint", "serial", "bigserial"]:
+    elif data_type in [
+        "integer",
+        "smallint",
+        "bigint",
+        "serial",
+        "smallserial",
+        "bigserial",
+        "int",
+    ]:
         return "int"
     elif data_type in ["boolean"]:
         return "bool"
-    elif data_type in ["float", "double precision", "real", "numeric", "decimal"]:
+    elif data_type in [
+        "float",
+        "double precision",
+        "real",
+        "numeric",
+        "decimal",
+        "double",
+        "number",
+    ]:
         return "float"  # Or Decimal from decimal module
     elif data_type in ["date"]:
         return "date"
     elif data_type in ["timestamp", "timestamptz", "datetime"]:
         return "datetime"
-    elif data_type in ["bytea", "blob"]:
+    elif data_type in ["bytea", "blob", "varbinary", "image"]:
         return "bytes"
     return "Any"  # Fallback for unhandled types
 
@@ -530,6 +566,7 @@ def get_datetime_imports(table: Table) -> list[str]:
 def get_pydantic_type(column: Column) -> str:
     """Returns the Pydantic type string (e.g., str, Optional[int])."""
     py_type = get_python_type(column)
+
     if py_type == "date":
         py_type = "date"  # pydantic.types.date
     elif py_type == "datetime":
@@ -540,6 +577,46 @@ def get_pydantic_type(column: Column) -> str:
     if column.nullable:
         return f"Optional[{py_type}]"
     return py_type
+
+
+def to_pydantic_field_attrs(column: Column):
+    buf = ""
+    data_type = column.data_type.lower()
+    if column.nullable is False:
+        buf += "...,"
+    # else:
+    #     buf += "None,"
+
+    if column.default_value is not None:
+        buf += f" default={column.default_value},"
+    else:
+        buf += " default=None,"
+
+    if data_type in [
+        "varchar",
+        "char",
+        "varchar2",
+        "nvarchar",
+        "nvarchar2",
+        "character varying",
+    ]:
+        buf += f" min_length=1, max_length={column.char_length},"
+
+    buf += f' description="{to_decription(column.name)}"'
+    return buf
+
+
+def to_flask_restx_field_attrs(column: Column) -> str:
+    buf = ""
+
+    if column.is_primary is True:
+        buf += "readOnly=True,"
+
+    if column.nullable is False:
+        buf += "required=True,"
+
+    buf += f' description="{to_decription(column.name)}"'
+    return buf
 
 
 def get_sqlalchemy_type_imports(table: Table) -> str:
@@ -554,11 +631,28 @@ def get_sqlalchemy_type_imports(table: Table) -> str:
 def get_sqlalchemy_type(column: Column) -> str:
     """Returns the SQLAlchemy type string (e.g., String, Integer)."""
     data_type = column.data_type.lower()
-    if data_type in ["varchar", "char"]:
+    if data_type in [
+        "varchar",
+        "char",
+        "character",
+        "varchar2",
+        "nvarchar",
+        "nvarchar2",
+        "character varying",
+        "bpchar",
+    ]:
         return f"String({column.char_length})" if column.char_length else "String"
     elif data_type == "text":
         return "Text"
-    elif data_type in ["integer", "smallint", "bigint", "serial", "bigserial"]:
+    elif data_type in [
+        "integer",
+        "smallint",
+        "bigint",
+        "int",
+        "smallserial",
+        "serial",
+        "bigserial",
+    ]:
         return "Integer"
     elif data_type == "boolean":
         return "Boolean"
@@ -583,6 +677,82 @@ def get_sqlalchemy_type(column: Column) -> str:
     elif data_type in ["bytea", "blob"]:
         return "LargeBinary"
     return "String"  # Default fallback
+
+
+def get_flask_restx_type(column: Column) -> str:
+    """
+    Returns the Flask-RESTx document model field type string
+    (e.g., 'fields.String', 'fields.Integer') based on a given database type string.
+
+    Args:
+        db_type (str): The database column type as a string (e.g., "varchar", "integer", "timestamp").
+
+    Returns:
+        str: The corresponding Flask-RESTx field type string.
+    """
+    # Normalize the input type to lowercase for case-insensitive matching
+    normalized_db_type = column.data_type.lower()
+
+    # Dictionary mapping common database types to Flask-RESTx field types
+    # This provides a quick lookup for direct mappings.
+    type_map = {
+        # String types
+        "varchar": "fields.String",
+        "char": "fields.String",
+        "character": "fields.String",
+        "varchar2": "fields.String",
+        "nvarchar": "fields.String",
+        "nvarchar2": "fields.String",
+        "character varying": "fields.String",
+        "bpchar": "fields.String",
+        "text": "fields.String",  # TEXT maps to String in Flask-RESTx for API representation
+        # Integer types
+        "integer": "fields.Integer",
+        "smallint": "fields.Integer",
+        "bigint": "fields.Integer",
+        "int": "fields.Integer",
+        "smallserial": "fields.Integer",  # PostgreSQL serial types map to Integer
+        "serial": "fields.Integer",
+        "bigserial": "fields.Integer",
+        # Boolean type
+        "boolean": "fields.Boolean",
+        "bool": "fields.Boolean",
+        # Floating point types
+        "float": "fields.Float",
+        "real": "fields.Float",
+        "double precision": "fields.Float",  # Maps to Float for general API use
+        # Numeric/Decimal types
+        "numeric": "fields.Float",  # Often mapped to Float for simplicity in APIs
+        "decimal": "fields.Float",  # Or fields.Raw if exact precision is critical and handled client-side
+        # Date and Time types
+        "date": "fields.Date",
+        "timestamp": "fields.DateTime",
+        "timestamptz": "fields.DateTime",  # With timezone, still DateTime in Flask-RESTx
+        "datetime": "fields.DateTime",
+        # UUID type (often represented as a string in APIs)
+        "uuid": "fields.String",
+        # JSON and Binary types (often represented as raw data or strings)
+        "json": "fields.Raw",  # Can be fields.String if always stringified JSON
+        "jsonb": "fields.Raw",
+        "bytea": "fields.Raw",  # Binary data, often base64 encoded string in APIs
+        "blob": "fields.Raw",
+        "binary": "fields.Raw",
+    }
+
+    # Check for direct mapping
+    if normalized_db_type in type_map:
+        return type_map[normalized_db_type]
+
+    # Handle cases where the type might have parameters, but Flask-RESTx doesn't
+    # typically use them directly in the field type string (e.g., String(255) is just String)
+    # For example, if input is "varchar(255)", we still want "fields.String"
+    if "(" in normalized_db_type and ")" in normalized_db_type:
+        base_type = normalized_db_type.split("(")[0]
+        if base_type in type_map:
+            return type_map[base_type]
+
+    # Default fallback for unhandled types
+    return "fields.String"
 
 
 def get_pk_columns(table: Table) -> List[Column]:
@@ -719,3 +889,8 @@ def get_pk_test_url_str(table: Table) -> str:
     for col in pk_cols:
         parts.append(f'str(data["{to_snake_case(col.name)}"])')
     return ' + "/" + '.join(parts)
+
+
+def write_source_file(file_path, content):
+    with open(file_path, "wt", encoding="utf-8") as fout:
+        fout.write(content)

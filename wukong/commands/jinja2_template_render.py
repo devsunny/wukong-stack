@@ -50,6 +50,16 @@ class Jinja2TemplateRender:
         self.env.filters["is_composite_foreign_key"] = (
             template_utils.is_composite_foreign_key
         )
+        self.env.filters["get_pydantic_type"] = template_utils.get_pydantic_type
+
+        self.env.filters["to_pydantic_field_attrs"] = (
+            template_utils.to_pydantic_field_attrs
+        )
+        self.env.filters["to_flask_restx_field_attrs"] = (
+            template_utils.to_flask_restx_field_attrs
+        )
+        self.env.filters["get_flask_restx_type"] = template_utils.get_flask_restx_type
+        self.env.filters["python_type"] = template_utils.get_python_type
 
     def add_filter(self, name, filter_fuction: Callable):
         self.env.filters[name] = filter_fuction

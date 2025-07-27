@@ -1,0 +1,102 @@
+from __future__ import annotations
+from typing import List
+from flask_restx import Resource, fields
+from ..extensions import api
+from ..models.{{table_singular_snakecase_name}} import {{ table_singular_pascal_name }}
+from ..schemas.{{table_singular_snakecase_name}} import {{ table_singular_pascal_name }}Create, {{ table_singular_pascal_name }}Read, {{ table_singular_pascal_name }}Update, 
+
+# --- Flask-RESTX API Models (for documentation) ---
+# The model defines the structure for the API documentation (Swagger UI)
+
+
+{{table_singular_snakecase_name}}_model = api.model('{{table_singular_pascal_name}}', {
+    {% for column in columns %}
+    {{column.name | snake_case}} = {{ column | get_flask_restx_type}}({{ column | to_flask_restx_field_attrs}})
+    {% endfor %}
+})
+
+# --- API Endpoints ---
+
+# Namespace for {{table.name}}
+ns_{{table_plural_snakecase_name}} = api.namespace('{{table_plural_snakecase_name}}', description='{{ table_singular_pascal_name }} operations')
+
+
+@ns_{{table_plural_snakecase_name}}.route('/')
+class {{table_singular_pascal_name}}List(Resource):
+    @ns_{{table_plural_snakecase_name}}.doc('list_{{table_plural_snakecase_name}}')
+    @ns_{{table_plural_snakecase_name}}.marshal_list_with({{table_singular_snakecase_name}}_model)
+    def get(self):
+        """List all departments"""
+        {{table_plural_snakecase_name}} = {{ table_singular_pascal_name }}.query.all()
+        return [{{ table_singular_pascal_name }}Read.from_orm(item).dict() for item in {{table_plural_snakecase_name}}]
+
+    @ns_{{table_plural_snakecase_name}}.doc('create_{{table_singular_snakecase_name}}')
+    @ns_{{table_plural_snakecase_name}}.expect({{table_singular_snakecase_name}}_model, validate=True)
+    @ns_{{table_plural_snakecase_name}}.marshal_with({{table_singular_snakecase_name}}_model, code=201)
+    def post(self):
+        """Create a new {{table_singular_snakecase_name}}"""
+        try:
+            data = {{ table_singular_pascal_name }}Create(**api.payload)
+            new_{{table_singular_snakecase_name}} = {{ table_singular_pascal_name }}(
+                {% for column in columns %}
+                {{column.name | snake_case}} = data.{{column.name | snake_case}}{% if not loop.last %},
+                {% endif %}
+                {% endfor %}               
+            )
+            db.session.add(new_{{table_singular_snakecase_name}})
+            db.session.commit()
+            return {{ table_singular_pascal_name }}Read.from_orm(new_{{table_singular_snakecase_name}}).dict(), 201
+        except ValidationError as e:
+            api.abort(400, message=f"Validation error: {e.errors()}")
+        except Exception as e:
+            db.session.rollback()
+            api.abort(500, message=f"Internal server error: {str(e)}")
+
+
+{% if pk_columns %}
+@ns_{{table_plural_snakecase_name}}.route('{% for pk_col in pk_columns %}/<{{pk_col | python_type }}:{{pk_col.name | snake_case }}>{% endfor %}')
+{% for pk_col in pk_columns %}@ns_{{table_plural_snakecase_name}}.param({{pk_col.name | snake_case }}, 'The {{ table_singular_snakecase_name }} {{pk_col.name | snake_case }} identifier')
+{% endfor %}
+@ns_{{table_plural_snakecase_name}}.response(404, 'Department not found')
+class {{ table_singular_pascal_name }}Resource(Resource):
+    @ns_{{table_plural_snakecase_name}}.doc('get_department')
+    @ns_{{table_plural_snakecase_name}}.marshal_with(department_model)
+    def get(self, id):
+        """Retrieve a {{ table_singular_snakecase_name }} by its primary key"""
+        {{ table_singular_snakecase_name }} ={{ table_singular_pascal_name }}.query.get_or_404({% for pk_col in pk_columns %}{{pk_col.name | snake_case }}{% if not loop.last %}, {% endif %}{% endfor %})
+        return {{ table_singular_pascal_name }}Read.from_orm({{ table_singular_snakecase_name }}).dict()
+
+    @ns_{{table_plural_snakecase_name}}.doc('update_{{ table_singular_snakecase_name }}')
+    @ns_{{table_plural_snakecase_name}}.expect({{ table_singular_snakecase_name }}_model, validate=True)
+    @ns_{{table_plural_snakecase_name}}.marshal_with({{ table_singular_snakecase_name }}_model)
+    def put(self, id):
+        """Update an existing department"""
+        {{ table_singular_snakecase_name }} = {{ table_singular_pascal_name }}.query.get_or_404({% for pk_col in pk_columns %}{{pk_col.name | snake_case }}{% if not loop.last %}, {% endif %}{% endfor %})
+        try:
+            data = {{ table_singular_pascal_name }}Update(**api.payload)
+            {% for column in columns %}
+            {% if not column.is_primary %}
+            {{ table_singular_snakecase_name }}.{{column.name | snake_case}} = data.{{column.name | snake_case}},
+            {% endif %}{% endfor %}            
+            db.session.commit()
+            return {{ table_singular_pascal_name }}Read.from_orm({{ table_singular_snakecase_name }}).dict()
+        except ValidationError as e:
+            api.abort(400, message=f"Validation error: {e.errors()}")
+        except Exception as e:
+            db.session.rollback()
+            api.abort(500, message=f"Internal server error: {str(e)}")
+
+    @ns_{{table_plural_snakecase_name}}.doc('delete_{{ table_singular_snakecase_name }}')
+    @ns_{{table_plural_snakecase_name}}.response(204, '{{ table_singular_pascal_name }} deleted')
+    def delete(self, {% for pk_col in pk_columns %}{{pk_col.name | snake_case }}{% if not loop.last %}, {% endif %}{% endfor %}):
+        """Delete a {{ table_singular_snakecase_name }}"""
+        {{ table_singular_snakecase_name }} = {{ table_singular_pascal_name }}.query.get_or_404({% for pk_col in pk_columns %}{{pk_col.name | snake_case }}{% if not loop.last %}, {% endif %}{% endfor %})
+        try:
+            db.session.delete({{ table_singular_snakecase_name }})
+            db.session.commit()
+            return '', 204
+        except Exception as e:
+            db.session.rollback()
+            api.abort(500, message=f"Internal server error: {str(e)}")
+
+{% endif %}
