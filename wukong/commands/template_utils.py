@@ -3,6 +3,81 @@ from pgsql_parser import Column, Table, ForeignKey
 from typing import List
 
 
+sql_type_to_flask_sqlalchemy_types = {
+    "VARCHAR": "db.String",
+    "TEXT": "db.Text",
+    "INTEGER": "db.Integer",
+    "INT": "db.Integer",
+    "BIGINT": "db.BigInteger",
+    "SMALLINT": "db.SmallInteger",
+    "BOOLEAN": "db.Boolean",
+    "DATE": "db.Date",
+    "DATETIME": "db.DateTime",
+    "TIMESTAMP": "db.TIMESTAMP",
+    "FLOAT": "db.Float",
+    "REAL": "db.REAL",
+    "NUMERIC": "db.Numeric",
+    "DECIMAL": "db.Numeric",
+    "BLOB": "db.LargeBinary",
+    "JSON": "db.JSON",
+    # PostgreSQL Specific Types
+    "UUID": "sqlalchemy.dialects.postgresql.UUID(as_uuid=True)",
+    "JSONB": "sqlalchemy.dialects.postgresql.JSONB",
+    "ARRAY": "sqlalchemy.dialects.postgresql.ARRAY(db.Integer)",
+    "INET": "sqlalchemy.dialects.postgresql.INET",
+    "MACADDR": "sqlalchemy.dialects.postgresql.MACADDR",
+    "DOUBLE PRECISION": "sqlalchemy.dialects.postgresql.DOUBLE_PRECISION",
+    "SMALLSERIAL": "db.SmallInteger",  # Autoincrement handled by primary_key=True
+    "SERIAL": "db.Integer",  # Autoincrement handled by primary_key=True
+    "BIGSERIAL": "db.BigInteger",  # Autoincrement handled by primary_key=True
+    "CHARACTER VARYING": "db.String",
+    "CHARACTER": "db.String",
+    "CHAR": "db.String",
+    "BPCHAR": "db.String",  # Fixed-length, blank-padded character type
+    # "BPCHAR": "db.String", # Fixed-length, blank-padded character type without explicit length
+    # SQL Server Specific Types
+    "NVARCHAR": "db.NVARCHAR",
+    "VARBINARY": "db.VARBINARY",
+    "IMAGE": "db.LargeBinary",  # Similar to BLOB
+    "MONEY": "db.Numeric(19, 4)",  # Common mapping for MONEY
+    "SMALLDATETIME": "db.DateTime",
+    "DATETIME2": "db.DateTime",
+    "UNIQUEIDENTIFIER": "sqlalchemy.dialects.mssql.UNIQUEIDENTIFIER",
+    # # Oracle Specific Types
+    "NUMBER": "db.Numeric",
+    "VARCHAR2": "db.String",
+    "NVARCHAR2": "db.NVARCHAR",
+    "CLOB": "db.Text",
+    # "DATE": "db.DateTime", # Oracle's DATE includes time component
+    "RAW": "db.LargeBinary",
+    # # MySQL Specific Types
+    "TINYINT(1)": "db.Boolean",  # Often used for boolean
+    "MEDIUMINT": "db.Integer",
+    "YEAR": "db.Integer",  # Stored as integer
+    "ENUM": "db.Enum",  # SQLAlchemy's generic Enum
+    "SET": "db.String",  # Typically stored as comma-separated string
+    "JSON": "db.JSON",
+}
+
+
+def to_flask_sqlalchemy_type(column):
+    data_type = column.data_type.upper()
+    alchemy_type = sql_type_to_flask_sqlalchemy_types.get(data_type)
+    if not alchemy_type:
+        raise ValueError(f"unrecognized data type:{data_type}")
+    if (
+        alchemy_type in ["db.String", "db.NVARCHAR", "db.VARBINARY"]
+        and column.char_length > 0
+    ):
+        return f"{alchemy_type}({column.char_length})"
+    elif alchemy_type in ["db.Numeric"] and column.numeric_precision:
+        if column.numeric_scale:
+            return f"{alchemy_type}({column.numeric_precision}, {column.numeric_scale})"
+        return f"{alchemy_type}({column.numeric_precision}, 0)"
+
+    return alchemy_type
+
+
 def to_composite_fk_str(fk: ForeignKey) -> str:
 
     cols_str = str(fk.columns)
@@ -13,8 +88,7 @@ def to_composite_fk_str(fk: ForeignKey) -> str:
         else:
             refcols.append(f"{fk.ref_table}.{rfcol}")
     refcols_str = str(refcols)
-
-    return f"ForeignKey({cols_str}, {refcols_str})"
+    return f"db.ForeignKeyConstraint({cols_str}, {refcols_str})"
 
 
 def to_snake_case(input_string: str) -> str:
@@ -98,6 +172,63 @@ def to_pascal_case(input_string: str) -> str:
     return "".join(pascal_cased_parts)
 
 
+def normalize_words(words):
+    norm_words = []
+    buf = []
+    for word in words:
+        if len(word) > 1:
+            if len(buf) > 0:
+                norm_words.append("".join(buf))
+                buf = []
+            norm_words.append(word)
+        elif re.match(r"^[^A-Z0-9]$", word):
+
+            if len(buf) > 0:
+                norm_words.append("".join(buf))
+                buf = []
+            if len(norm_words) > 0:
+                norm_words.append(word)
+        else:
+            buf.append(word)
+    if len(buf) > 0:
+        norm_words.append("".join(buf))
+        buf = []
+    ret_cnt = len(norm_words)
+    if ret_cnt > 1:
+        for idx in range(1, ret_cnt + 1):
+            if norm_words[ret_cnt - idx] != "_":
+                brk = ret_cnt - idx + 1
+                norm_words = norm_words[0:brk]
+                break
+    return norm_words
+
+
+def split_words(word_or_multi_words):
+    lcnt = len(word_or_multi_words)
+    pos = 0
+    words = []
+    buf = []
+    while pos < lcnt:
+        c = word_or_multi_words[pos]
+        pos += 1
+        if re.match(r"^[A-Z]$", c):
+            if len(buf) > 0:
+                words.append("".join(buf))
+                buf = []
+            buf.append(c)
+        elif re.match(r"^[^a-zA-Z0-9]$", c):
+            if len(buf) > 0:
+                words.append("".join(buf))
+                buf = []
+            words.append("_")
+        else:
+            buf.append(c)
+
+    if len(buf) > 0:
+        words.append("".join(buf))
+    return normalize_words(words)
+
+
 def singularize(word):
     """
     Convert a plural noun to its singular form.
@@ -111,8 +242,10 @@ def singularize(word):
     """
     if not word:
         return word
-
+    original_word = word
     word = word.lower()
+    if word.endswith("phases"):
+        return original_word[0:-1]
 
     # Dictionary for irregular plurals
     irregulars = {
@@ -201,6 +334,9 @@ def pluralize(word):
         return word
 
     word = word.lower()
+
+    if word.endswith("phases"):
+        return word
 
     # Dictionary for irregular plurals
     irregulars = {
@@ -437,40 +573,6 @@ def get_parent_tables(child_table: Table, tables: List[Table]) -> List[Table]:
     return []
 
 
-def get_sqlalchemy_type(column: Column) -> str:
-    """Returns the SQLAlchemy type string (e.g., String, Integer)."""
-    data_type = column.data_type.lower()
-    if data_type in ["varchar", "char"]:
-        return f"String({column.char_length})" if column.char_length else "String"
-    elif data_type == "text":
-        return "Text"
-    elif data_type in ["integer", "smallint", "bigint", "serial", "bigserial"]:
-        return "Integer"
-    elif data_type == "boolean":
-        return "Boolean"
-    elif data_type in ["float", "real"]:
-        return "Float"
-    elif data_type in ["double precision"]:
-        return "Double"
-    elif data_type in ["numeric", "decimal"]:
-        precision = (
-            column.numeric_precision if column.numeric_precision is not None else ""
-        )
-        scale = f", {column.numeric_scale}" if column.numeric_scale is not None else ""
-        return f"Numeric({precision}{scale})"
-    elif data_type == "date":
-        return "Date"
-    elif data_type in ["timestamp", "timestamptz", "datetime"]:
-        return "DateTime(timezone=True)" if "tz" in data_type else "DateTime"
-    elif data_type == "uuid":
-        return "UUID(as_uuid=True)"
-    elif data_type in ["json", "jsonb"]:
-        return "JSON"
-    elif data_type in ["bytea", "blob"]:
-        return "LargeBinary"
-    return "String"  # Default fallback
-
-
 def should_use_server_default(column: Column) -> bool:
     """Determines if a column should use server_default=func.now()."""
     # Check for specific SQL function strings in default_value
@@ -527,79 +629,3 @@ def get_pk_test_url_str(table: Table) -> str:
     for col in pk_cols:
         parts.append(f'str(data["{to_snake_case(col.name)}"])')
     return ' + "/" + '.join(parts)
-
-
-# @staticmethod
-# def _get_pk_type(table: Table) -> str:
-#     """Returns the Python type of the first primary key. For composite keys, use _get_pk_columns_types_str."""
-#     pk_column = CRUDApiGenerator._get_pk_column(table)
-#     if pk_column:
-#         return CRUDApiGenerator._sql_type_to_python_type(pk_column)
-#     return "int"  # Default to int if no PK found
-
-# @staticmethod
-# def _get_pk_name(table: Table) -> str:
-#     """Returns the name of the first primary key column. For composite keys, use _get_pk_columns_names_str."""
-#     pk_column = CRUDApiGenerator._get_pk_column(table)
-#     if pk_column:
-#         return pk_column.name
-#     return "id"  # Default to 'id'
-
-# @staticmethod
-# def _get_pk_columns(table: Table) -> List[Column]:
-#     """Returns a list of primary key columns for a table."""
-#     if table.primary_key and table.primary_key.columns:
-#         return [
-#             table.columns[col_name]
-#             for col_name in table.primary_key.columns
-#             if col_name in table.columns
-#         ]
-#     return []
-
-# @staticmethod
-# def _get_pk_columns_names_str(table: Table) -> str:
-#     """Returns a comma-separated string of primary key column names (snake_case)."""
-#     pk_cols = CRUDApiGenerator._get_pk_columns(table)
-#     return ", ".join([CRUDApiGenerator._to_snake_case(col.name) for col in pk_cols])
-
-# @staticmethod
-
-# @staticmethod
-
-# @staticmethod
-# def _get_pk_filter_conditions_str(table: Table) -> str:
-#     """Returns a string for SQLAlchemy filter conditions (e.g., 'Model.id1 == id1, Model.id2 == id2')."""
-#     pk_cols = CRUDApiGenerator._get_pk_columns(table)
-#     conditions = [
-#         f"{{{{ table_pascal_case }}}}.{CRUDApiGenerator._to_snake_case(col.name)} == {CRUDApiGenerator._to_snake_case(col.name)}"
-#         for col in pk_cols
-#     ]
-#     return ", ".join(conditions)
-
-# @staticmethod
-
-# @staticmethod
-
-
-# @staticmethod
-
-
-# @staticmethod
-
-# @staticmethod
-
-
-# @staticmethod
-# def _has_datetime_or_date_column(table: Table) -> bool:
-#     """Checks if the table has any date or datetime columns."""
-#     for column in table.columns.values():
-#         if column.data_type.lower() in [
-#             "date",
-#             "timestamp",
-#             "timestamptz",
-#             "datetime",
-#         ]:
-#             return True
-#     return False
-
-# @staticmethod

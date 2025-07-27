@@ -1,6 +1,7 @@
 import os
 import click
 from .cli_utils import check_init_confict_input, write_sample_file, make_nested_dirs
+from .wukong_env import update_config
 
 backend_structure = """
 your_project_name/
@@ -66,6 +67,10 @@ def create_flask_project_structure(
         project_root_dir = project_base_dir
     else:
         project_root_dir = os.getcwd()
+
+    update_config(project_root_dir, "project_root_dir")
+    update_config("flask", "type", "backend")
+    update_config(flask_base_dir, "dir", "backend")
 
     check_init_confict_input("flask", project_root_dir, flask_base_dir)
     write_sample_file(project_root_dir, "flaskenv.txt", ".flaskenv")

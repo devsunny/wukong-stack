@@ -1,5 +1,6 @@
 import os
-from typing import Dict
+from io import StringIO
+from typing import Dict, Callable
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from .template_utils import to_snake_case, to_pascal_case, singularize, pluralize
 from . import template_utils
@@ -15,7 +16,7 @@ class Jinja2TemplateRender:
     - Pytest unit tests
     """
 
-    def __init__(self, template_dir: str):
+    def __init__(self, template_dir: str = "templates"):
         """
         Args:
             tables: List of Table objects to generate
@@ -37,17 +38,25 @@ class Jinja2TemplateRender:
         self.env.filters["pascal_case"] = to_pascal_case
         self.env.filters["singularize"] = singularize
         self.env.filters["pluralize"] = pluralize
+        self.env.filters["sqlalchemy_type"] = template_utils.to_flask_sqlalchemy_type
+
+    def add_filter(self, name, filter_fuction: Callable):
+        self.env.filters[name] = filter_fuction
 
     def render_template(
         self,
         template_name: str,
         context: Dict,
-        output_file: str,
+        output_file: str = None,
         force_overwrite: bool = False,
-    ) -> None:
+    ) -> None | str:
         # Generate Model
         context["utils"] = template_utils
-        if not os.path.exists(output_file) or force_overwrite is True:
+        model_template = self.env.get_template(template_name)
+        model_content = model_template.render(context)
+        if output_file is None:
+            return model_content
+        elif not os.path.exists(output_file) or force_overwrite is True:
             model_template = self.env.get_template(template_name)
             model_content = model_template.render(context)
             with open(output_file, "w") as f:

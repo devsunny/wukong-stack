@@ -3,7 +3,7 @@ from datetime import date, datetime
 from typing import Optional, List, Dict, Tuple
 from pgsql_parser import Column, PrimaryKey, ForeignKey, Constraint, Table, Index
 
-from wukong.template_utils import (  # Uncomment and adjust if your code is in a different file
+from wukong.commands.template_utils import (  # Uncomment and adjust if your code is in a different file
     to_composite_fk_str,
     to_snake_case,
     to_pascal_case,

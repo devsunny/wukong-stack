@@ -3,15 +3,26 @@ from typing import List
 import uuid
 {% for impt in utils.get_datetime_imports(table) %}from datetime import {{impt}}
 {% endfor %}
-from sqlalchemy import Column, ForeignKey, func {% for impt in utils.get_sqlalchemy_type_imports(table) %},{{impt}} {% endfor %}  
-from sqlalchemy.orm import relationship, Mapped, mapped_column
+{% if is_postgres %}import sqlalchemy.dialects.postgresql{% endif %}
 
-# Base is typically imported from database.py in a real project structure
-# For standalone template rendering, we define it here.
-from sqlalchemy.ext.declarative import declarative_base
-Base = declarative_base()
+from ..extensions import db
+"""
+self.table_name = (table_name,)
+self.name = name
+self.data_type: Optional[str] = data_type
+self.nullable: bool = nullable
+self.default_value: Optional[str] = default_value
+self.is_primary: bool = is_primary
+self.char_length: Optional[int] = None
+self.numeric_precision: Optional[int] = None
+self.numeric_scale: Optional[int] = None
+self.primary_key_position: Optional[int] = None
+self.foreign_key_ref: Optional[Tuple[str, str, str]] = None
+self.constraints: List[Dict] = []  # For column-level constraints
+"""
 
-class {{ table_pascal_case }}(Base):
+
+class {{ table_singular_pascal_name }}(db.Model):
     __tablename__ = "{{ table.name }}"
     {% if table.schema %}
     __table_args__ = (
@@ -26,34 +37,12 @@ class {{ table_pascal_case }}(Base):
     {% endif %}
 
     {% for column in columns %}
-    {{ column.name | snake_case }}: Mapped[{{ utils.get_python_type(column) }}] = mapped_column("{{column.name}}",
-        {{ utils.get_sqlalchemy_type(column) }},
-        {% if column.foreign_key_ref and column.foreign_key_ref[0] %}        
-        ForeignKey("{{column.foreign_key_ref[0]}}.{{column.foreign_key_ref[1]}}.{{column.foreign_key_ref[2]}}"),
-        {% elif column.foreign_key_ref %}
-        ForeignKey("{{column.foreign_key_ref[1]}}.{{column.foreign_key_ref[2]}}"),
-        {% endif %}
-        {% if column.is_primary %}
-        primary_key=True,
-        {% endif %}
-        {% if not column.nullable %}
-        nullable=False,
-        {% endif %}        
-        {% if utils.should_use_server_default(column) %}
-        server_default=func.now(),
-        {% elif column.default_value is not none %} {# Only use default if not server_default and default_value exists #}
-            {% if column.data_type.lower() in ['varchar', 'text', 'char', 'uuid', 'json', 'jsonb', 'date', 'timestamp', 'timestamptz', 'datetime', 'time'] %}
-        default="{{ column.default_value }}",
-            {% else %}
-        default={{ column.default_value }},
-            {% endif %}
-        {% endif %}
-        )    
+    {{column.name | snake_case}} = db.Column({{column | sqlalchemy_type}}{% if not column.nullable  %} , nullable=False{% endif %}{% if column.is_primary %}, primary_key=True{% endif %}{% if column.foreign_key_ref %}, db.ForeignKey('{{column.foreign_key_ref[1]}}.{{column.foreign_key_ref[2]}}'){% endif %})
     {% endfor %}
 
       
     
 
     def __repr__(self):
-        return f"<{{ table_pascal_case }}({{ utils.get_pk_names_for_repr(table) }})>"
+        return f"<{{ table_singular_pascal_name }}({{ utils.get_pk_names_for_repr(table) }})>"
 
