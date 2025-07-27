@@ -3,44 +3,28 @@ from typing import List
 import uuid
 {% for impt in utils.get_datetime_imports(table) %}from datetime import {{impt}}
 {% endfor %}
-{% if is_postgres %}import sqlalchemy.dialects.postgresql{% endif %}
-
+{% if is_postgres %}import sqlalchemy.dialects.postgresql
+{% endif %}
 from ..extensions import db
-"""
-self.table_name = (table_name,)
-self.name = name
-self.data_type: Optional[str] = data_type
-self.nullable: bool = nullable
-self.default_value: Optional[str] = default_value
-self.is_primary: bool = is_primary
-self.char_length: Optional[int] = None
-self.numeric_precision: Optional[int] = None
-self.numeric_scale: Optional[int] = None
-self.primary_key_position: Optional[int] = None
-self.foreign_key_ref: Optional[Tuple[str, str, str]] = None
-self.constraints: List[Dict] = []  # For column-level constraints
-"""
-
+{% for fk in child_relationships %}
+from .{{ fk.table_name | to_singular_snake_case }}  import {{ fk.table_name | to_singular_pascal_case }}
+{% endfor %}
 
 class {{ table_singular_pascal_name }}(db.Model):
     __tablename__ = "{{ table.name }}"
-    {% if table.schema %}
-    __table_args__ = (
-    {% if table.foreign_keys %}
-        {% for fk in table.foreign_keys %}
-            {% if fk.is_composite_key %}
-                {{ utils.to_composite_fk_str(fk) }},
-            {% endif %}
-        {% endfor %}
-    {% endif %}
-    {'schema': '{{ table.schema }}',})
+    {% if has_table_args %}
+    __table_args__ = ({% for fk in composite_fks %}{{ utils.to_composite_fk_str(fk) }},           
+                        {% endfor %}    
+    {% if table.schema %}{'schema': '{{ table.schema }}',}{% endif %})
     {% endif %}
 
     {% for column in columns %}
     {{column.name | snake_case}} = db.Column({{column | sqlalchemy_type}}{% if not column.nullable  %} , nullable=False{% endif %}{% if column.is_primary %}, primary_key=True{% endif %}{% if column.foreign_key_ref %}, db.ForeignKey('{{column.foreign_key_ref[1]}}.{{column.foreign_key_ref[2]}}'){% endif %})
     {% endfor %}
 
-      
+    {% for fk in child_relationships %}
+    {{fk.table_name | to_plural_snake_case}} = db.relationship('{{ fk.table_name | to_singular_pascal_case }}', backref='{{ table_singular_snakecase_name }}', lazy=True)
+    {% endfor %}  
     
 
     def __repr__(self):

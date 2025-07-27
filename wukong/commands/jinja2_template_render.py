@@ -38,7 +38,18 @@ class Jinja2TemplateRender:
         self.env.filters["pascal_case"] = to_pascal_case
         self.env.filters["singularize"] = singularize
         self.env.filters["pluralize"] = pluralize
+        self.env.filters["to_singular_snake_case"] = (
+            template_utils.to_singular_snake_case
+        )
+        self.env.filters["to_singular_pascal_case"] = (
+            template_utils.to_singular_pascal_case
+        )
+        self.env.filters["to_plural_snake_case"] = template_utils.to_plural_snake_case
+        self.env.filters["to_plural_pascal_case"] = template_utils.to_plural_pascal_case
         self.env.filters["sqlalchemy_type"] = template_utils.to_flask_sqlalchemy_type
+        self.env.filters["is_composite_foreign_key"] = (
+            template_utils.is_composite_foreign_key
+        )
 
     def add_filter(self, name, filter_fuction: Callable):
         self.env.filters[name] = filter_fuction

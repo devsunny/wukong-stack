@@ -60,6 +60,22 @@ sql_type_to_flask_sqlalchemy_types = {
 }
 
 
+def get_child_relationships(table: Table, tables: List[Table]) -> List[ForeignKey]:
+    child_relationships: List[ForeignKey] = []
+    if table.primary_key:
+        for tb in tables:
+            if not tb.foreign_keys:
+                continue
+            for fk in tb.foreign_keys:
+                if fk.ref_table.upper() == table.name.upper():
+                    child_relationships.append(fk)
+    return child_relationships
+
+
+def is_composite_foreign_key(fk: ForeignKey):
+    return len(fk.columns) > 1
+
+
 def to_flask_sqlalchemy_type(column):
     data_type = column.data_type.upper()
     alchemy_type = sql_type_to_flask_sqlalchemy_types.get(data_type)
@@ -172,7 +188,7 @@ def to_pascal_case(input_string: str) -> str:
     return "".join(pascal_cased_parts)
 
 
-def normalize_words(words):
+def normalize_words(words: List[str]) -> List[str]:
     norm_words = []
     buf = []
     for word in words:
@@ -203,7 +219,7 @@ def normalize_words(words):
     return norm_words
 
 
-def split_words(word_or_multi_words):
+def split_words(word_or_multi_words: str) -> List[str]:
     lcnt = len(word_or_multi_words)
     pos = 0
     words = []
@@ -227,6 +243,80 @@ def split_words(word_or_multi_words):
     if len(buf) > 0:
         words.append("".join(buf))
     return normalize_words(words)
+
+
+def to_singular(word_or_multi_words) -> str:
+    words = split_words(word_or_multi_words)
+    if not words:
+        raise ValueError(f"Invalid identifier [{word_or_multi_words}]")
+    last_word = words[-1]
+    singular = singularize(last_word)
+    plural = pluralize(singular)
+    if plural.lower() == last_word.lower():
+        words[-1] = singular
+    return "".join(words)
+
+
+def to_singular_snake_case(word_or_multi_words) -> str:
+    words = split_words(word_or_multi_words)
+    if not words:
+        raise ValueError(f"Invalid identifier [{word_or_multi_words}]")
+    last_word = words[-1]
+    singular = singularize(last_word)
+    plural = pluralize(singular)
+    if plural.lower() == last_word.lower():
+        words[-1] = singular
+    ret_word = "_".join(words).lower()
+    return re.sub(r"[_]+", "_", ret_word).strip("_")
+
+
+def to_singular_pascal_case(word_or_multi_words) -> str:
+    words = split_words(word_or_multi_words)
+    if not words:
+        raise ValueError(f"Invalid identifier [{word_or_multi_words}]")
+    last_word = words[-1]
+    singular = singularize(last_word)
+    plural = pluralize(singular)
+    if plural.lower() == last_word.lower():
+        words[-1] = singular
+    ret_word = "".join([wrd.lower().capitalize() for wrd in words if wrd != "_"])
+    return ret_word
+
+
+def to_plural(word_or_multi_words) -> str:
+    words = split_words(word_or_multi_words)
+    if not words:
+        raise ValueError(f"Invalid identifier [{word_or_multi_words}]")
+    last_word = words[-1]
+    plural = pluralize(last_word)
+    singular = singularize(plural)
+    if singular.lower() == last_word.lower():
+        words[-1] = plural
+    return "".join(words)
+
+
+def to_plural_snake_case(word_or_multi_words) -> str:
+    words = split_words(word_or_multi_words)
+    if not words:
+        raise ValueError(f"Invalid identifier [{word_or_multi_words}]")
+    last_word = words[-1]
+    singular = singularize(last_word)
+    plural = pluralize(singular)
+    words[-1] = plural
+    ret_word = "_".join(words).lower()
+    return re.sub(r"[_]+", "_", ret_word).strip("_")
+
+
+def to_plural_pascal_case(word_or_multi_words) -> str:
+    words = split_words(word_or_multi_words)
+    if not words:
+        raise ValueError(f"Invalid identifier [{word_or_multi_words}]")
+    last_word = words[-1]
+    singular = singularize(last_word)
+    plural = pluralize(singular)
+    words[-1] = plural
+    ret_word = "".join([wrd.lower().capitalize() for wrd in words if wrd != "_"])
+    return ret_word
 
 
 def singularize(word):

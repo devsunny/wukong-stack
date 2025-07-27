@@ -2,7 +2,7 @@ import click
 import os
 from typing_extensions import List
 from .commands.flask_crud import generate_crud
-from pgsql_parser import SQLParser
+from pgsql_parser import SQLParser, Table
 
 
 @click.group()
@@ -45,7 +45,8 @@ def ddl_crud(ddl, tables):
     for table in ddl_tables:
         if filters and table.upper() not in filters:
             continue
-        generate_crud(table)
+
+        generate_crud(table, ddl_tables)
 
 
 @click.command
