@@ -28,8 +28,50 @@ def generate_crud_api_resource(context):
     return output
 
 
-def publish_crud_api_resource(context):
+def update_routes(router_path, tables: List[Table]):
+    import_lines = []
+    def_funct = None
+    api_lines = []
+    with open(router_path, "rt", encoding="utf-8") as fin:
+        for line in fin:
+            code = line.strip()
+            if code.startswith("from "):
+                import_lines.append(code)
+            elif code.startswith("def "):
+                def_funct = code
+            elif code.startswith("api."):
+                api_lines.append(code)
+    for table in tables:
+        import_line = f"from .api.{utils.to_singular_snake_case(table.name)} import ns_{utils.to_plural_snake_case(table.name)}"
+        api_line = f"api.add_namespace(ns_{utils.to_plural_snake_case(table.name)})"
+        if import_line not in import_lines:
+            import_lines.append(import_line)
+        if api_line not in api_lines:
+            api_lines.append(api_line)
+    def_funct = def_funct or "def init_route(api):"
+    with open(router_path, "wt", encoding="utf-8") as fout:
+        fout.write("\n".join(import_lines))
+        fout.write("\n\n\n")
+        fout.write(def_funct)
+        fout.write("\n")
+        api_lines = [f"    {code}" for code in api_lines]
+        fout.write("\n".join(api_lines))
+        fout.write("\n")
 
+
+def generate_routes(tables: List[Table]):
+    wukong_cfg = load_config()
+    if "project_root_dir" not in wukong_cfg or "backend" not in wukong_cfg:
+        raise ValueError("Please run `wukong init flask` first")
+    project_root_dir = wukong_cfg["project_root_dir"]
+    backend_dir = wukong_cfg["backend"]["dir"]
+    router_path = os.path.join(project_root_dir, backend_dir, "app/router.py")
+    if not os.path.exists(router_path) or os.path.getsize(router_path) == 0:
+        context = {"tables": tables}
+        output = template_render.render_template("backend/router.py.j2", context)
+        utils.write_source_file(router_path, output)
+    else:
+        update_routes(router_path, tables)
     pass
 
 
@@ -96,4 +138,3 @@ def generate_crud(table: Table, tables: List[Table]):
     utils.write_source_file(schema_path, generate_crud_api_resource(context))
 
     generate_crud_service(context)
-    publish_crud_api_resource(context)

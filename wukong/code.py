@@ -1,13 +1,24 @@
-import click
 import os
+import re
+import click
+
 from typing_extensions import List
-from .commands.flask_crud import generate_crud
+from .commands.flask_crud import (
+    generate_crud as generate_flask_crud,
+    generate_routes as generate_flask_routes,
+)
 from pgsql_parser import SQLParser, Table
 
 
 @click.group()
 def crud():
     pass
+
+
+def multiple_tables_callback(ctx, param, value):
+    if not value or ctx.resilient_parsing:
+        return
+    return re.split(r"[, ]", value)
 
 
 @click.command
@@ -21,12 +32,11 @@ def crud():
 )
 @click.option(
     "--tables",
-    help="generate only selected tables",
-    type=List[str],
+    help="generate CRUD artifacts for selected tables",
+    type=str,
     default=[],
     multiple=True,
     required=False,
-    prompt="enter names of tables",
 )
 def ddl_crud(ddl, tables):
     sqlparser = SQLParser()
@@ -42,22 +52,21 @@ def ddl_crud(ddl, tables):
                         sqlparser.parse_script(fin.read())
     ddl_tables = sqlparser.get_tables()
     filters = [table.upper() for table in tables] if tables else []
+    generated_tables = []
     for table in ddl_tables:
-        if filters and table.upper() not in filters:
+        if filters and table.name.upper() not in filters:
             continue
-
-        generate_crud(table, ddl_tables)
+        generate_flask_crud(table, ddl_tables)
+        generated_tables.append(table)
+    generate_flask_routes(generated_tables)
 
 
 @click.command
 @click.option(
     "--tables",
-    help="generate only selected tables",
-    type=List[str],
-    default=[],
-    multiple=True,
+    help="generate CRUD artifacts for selected tables",
     required=False,
-    prompt="enter names of tables",
+    prompt="enter names of tables for generating CRUD artifacts",
 )
 def database_crud(tables):
 
@@ -69,7 +78,6 @@ def database_crud(tables):
     "--query",
     help="generate a read only service endpoint based on input query",
     type=str,
-    default=[],
     multiple=True,
     required=False,
     prompt="enter names of tables",

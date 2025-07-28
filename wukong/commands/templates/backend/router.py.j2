@@ -1,63 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from typing import List, Optional
+{% for table in tables %}
+from .api.{{ utils.to_singular_snake_case(table.name) }} import ns_{{utils.to_plural_snake_case(table.name)}}
+{% endfor%}
 
-from {% if root_module_name %}..{% endif %}crud import {{ table_snake_case }} as crud
-from {% if root_module_name %}..{% endif %}schemas.{{ table_snake_case }} import {{ table_pascal_case }}Create, {{ table_pascal_case }}Update, {{ table_pascal_case }}Read, {{ table_pascal_case }}
-from {% if root_module_name %}..{% endif %}database import get_db
 
-router = APIRouter()
-
-@router.post("/", response_model={{ table_pascal_case }}Read, status_code=status.HTTP_201_CREATED)
-def create_new_{{ table_snake_case }}({{ table_snake_case }}: {{ table_pascal_case }}Create, db: Session = Depends(get_db)):
-    """
-    Create a new {{ table_snake_case }} record.
-    """
-    return crud.create_{{ table_snake_case }}(db=db, {{ table_snake_case }}={{ table_snake_case }})
-
-@router.get("/", response_model=List[{{ table_pascal_case }}]) # Use the full schema for list
-def read_all_{{ table_snake_case | pluralize }}(
-    skip: int = 0, 
-    limit: int = 100, 
-    db: Session = Depends(get_db),
-    eager_load_relations: bool = False # Allow eager loading for all
-):
-    """
-    Retrieve a list of all {{ table_snake_case | pluralize }}.
-    """
-    {{ table_snake_case | pluralize }} = crud.get_all_{{ table_snake_case | pluralize }}(db, skip=skip, limit=limit, eager_load_relations=eager_load_relations)
-    return {{ table_snake_case | pluralize }}
-
-@router.get("/{{ utils.get_pk_path_params_str(table) }}", response_model={{ table_pascal_case }}) # Use the full schema for single item
-def read_{{ table_snake_case }}(
-    {{ utils.get_pk_columns_types_str(table) }}, 
-    db: Session = Depends(get_db),
-    eager_load_relations: bool = False # Allow eager loading for single
-):
-    """
-    Retrieve a single {{ table_snake_case }} by its primary key.
-    """
-    db_{{ table_snake_case }} = crud.get_{{ table_snake_case }}(db, {{ utils.get_pk_kwargs_str(table) }}, eager_load_relations=eager_load_relations)
-    if db_{{ table_snake_case }} is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="{{ table_pascal_case }} not found")
-    return db_{{ table_snake_case }}
-
-@router.put("/{{ utils.get_pk_path_params_str(table) }}", response_model={{ table_pascal_case }}Read)
-def update_existing_{{ table_snake_case }}({{ utils.get_pk_columns_types_str(table) }}, {{ table_snake_case }}_update: {{ table_pascal_case }}Update, db: Session = Depends(get_db)):
-    """
-    Update an existing {{ table_snake_case }} record.
-    """
-    db_{{ table_snake_case }} = crud.update_{{ table_snake_case }}(db, {{ utils.get_pk_kwargs_str(table) }}, {{ table_snake_case }}_update={{ table_snake_case }}_update)
-    if db_{{ table_snake_case }} is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="{{ table_pascal_case }} not found")
-    return db_{{ table_snake_case }}
-
-@router.delete("/{{ utils.get_pk_path_params_str(table) }}", response_model={{ table_pascal_case }}Read)
-def delete_existing_{{ table_snake_case }}({{ utils.get_pk_columns_types_str(table) }}, db: Session = Depends(get_db)):
-    """
-    Delete a {{ table_snake_case }} record.
-    """
-    db_{{ table_snake_case }} = crud.delete_{{ table_snake_case }}(db, {{ utils.get_pk_kwargs_str(table) }})
-    if db_{{ table_snake_case }} is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="{{ table_pascal_case }} not found")
-    return db_{{ table_snake_case }}
+def init_routes(api):
+    {% for table in tables %}
+    api.add_namespace(ns_{{utils.to_plural_snake_case(table.name)}})
+    {% endfor %}

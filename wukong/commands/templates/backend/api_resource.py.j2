@@ -1,9 +1,10 @@
 from __future__ import annotations
 from typing import List
 from flask_restx import Resource, fields
-from ..extensions import api
+from pydantic import ValidationError
+from ..extensions import api, db
 from ..models.{{table_singular_snakecase_name}} import {{ table_singular_pascal_name }}
-from ..schemas.{{table_singular_snakecase_name}} import {{ table_singular_pascal_name }}Create, {{ table_singular_pascal_name }}Read, {{ table_singular_pascal_name }}Update, 
+from ..schemas.{{table_singular_snakecase_name}} import {{ table_singular_pascal_name }}Create, {{ table_singular_pascal_name }}Read, {{ table_singular_pascal_name }}Update 
 
 # --- Flask-RESTX API Models (for documentation) ---
 # The model defines the structure for the API documentation (Swagger UI)
@@ -11,7 +12,8 @@ from ..schemas.{{table_singular_snakecase_name}} import {{ table_singular_pascal
 
 {{table_singular_snakecase_name}}_model = api.model('{{table_singular_pascal_name}}', {
     {% for column in columns %}
-    {{column.name | snake_case}} = {{ column | get_flask_restx_type}}({{ column | to_flask_restx_field_attrs}})
+    '{{column.name | snake_case}}' : {{ column | get_flask_restx_type}}({{ column | to_flask_restx_field_attrs}}){% if not loop.last %},
+    {% endif %}
     {% endfor %}
 })
 
@@ -39,8 +41,7 @@ class {{table_singular_pascal_name}}List(Resource):
             data = {{ table_singular_pascal_name }}Create(**api.payload)
             new_{{table_singular_snakecase_name}} = {{ table_singular_pascal_name }}(
                 {% for column in columns %}
-                {{column.name | snake_case}} = data.{{column.name | snake_case}}{% if not loop.last %},
-                {% endif %}
+                {{column.name | snake_case}}=data.{{column.name | snake_case}},                
                 {% endfor %}               
             )
             db.session.add(new_{{table_singular_snakecase_name}})
@@ -55,22 +56,22 @@ class {{table_singular_pascal_name}}List(Resource):
 
 {% if pk_columns %}
 @ns_{{table_plural_snakecase_name}}.route('{% for pk_col in pk_columns %}/<{{pk_col | python_type }}:{{pk_col.name | snake_case }}>{% endfor %}')
-{% for pk_col in pk_columns %}@ns_{{table_plural_snakecase_name}}.param({{pk_col.name | snake_case }}, 'The {{ table_singular_snakecase_name }} {{pk_col.name | snake_case }} identifier')
+{% for pk_col in pk_columns %}@ns_{{table_plural_snakecase_name}}.param('{{pk_col.name | snake_case }}', 'The {{ table_singular_snakecase_name }} {{pk_col.name | snake_case }} identifier')
 {% endfor %}
-@ns_{{table_plural_snakecase_name}}.response(404, 'Department not found')
+@ns_{{table_plural_snakecase_name}}.response(404, '{{ table_singular_pascal_name }} not found')
 class {{ table_singular_pascal_name }}Resource(Resource):
-    @ns_{{table_plural_snakecase_name}}.doc('get_department')
-    @ns_{{table_plural_snakecase_name}}.marshal_with(department_model)
-    def get(self, id):
+    @ns_{{table_plural_snakecase_name}}.doc('get_{{ table_singular_snakecase_name }}')
+    @ns_{{table_plural_snakecase_name}}.marshal_with({{ table_singular_snakecase_name }}_model)
+    def get(self, {% for pk_col in pk_columns %}{{pk_col.name | snake_case }}{% if not loop.last %}, {% endif %}{% endfor %}):
         """Retrieve a {{ table_singular_snakecase_name }} by its primary key"""
-        {{ table_singular_snakecase_name }} ={{ table_singular_pascal_name }}.query.get_or_404({% for pk_col in pk_columns %}{{pk_col.name | snake_case }}{% if not loop.last %}, {% endif %}{% endfor %})
+        {{ table_singular_snakecase_name }} = {{ table_singular_pascal_name }}.query.get_or_404({% for pk_col in pk_columns %}{{pk_col.name | snake_case }}{% if not loop.last %}, {% endif %}{% endfor %})
         return {{ table_singular_pascal_name }}Read.from_orm({{ table_singular_snakecase_name }}).dict()
 
     @ns_{{table_plural_snakecase_name}}.doc('update_{{ table_singular_snakecase_name }}')
     @ns_{{table_plural_snakecase_name}}.expect({{ table_singular_snakecase_name }}_model, validate=True)
     @ns_{{table_plural_snakecase_name}}.marshal_with({{ table_singular_snakecase_name }}_model)
-    def put(self, id):
-        """Update an existing department"""
+    def put(self, {% for pk_col in pk_columns %}{{pk_col.name | snake_case }}{% if not loop.last %}, {% endif %}{% endfor %}):
+        """Update an existing {{ table_singular_snakecase_name }}"""
         {{ table_singular_snakecase_name }} = {{ table_singular_pascal_name }}.query.get_or_404({% for pk_col in pk_columns %}{{pk_col.name | snake_case }}{% if not loop.last %}, {% endif %}{% endfor %})
         try:
             data = {{ table_singular_pascal_name }}Update(**api.payload)

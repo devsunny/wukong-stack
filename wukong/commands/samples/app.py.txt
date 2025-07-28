@@ -4,6 +4,7 @@ from flask import Flask, jsonify
 from flask_restx import Api
 from .config import Config
 from .extensions import db, api as restx_api_extension # Rename 'api' to avoid conflict with Flask-RESTx's Api class
+from .router import init_routes
 from .errors import errors_bp
 from .api.v1.api import api_v1_bp # Import the blueprint that registers your Flask-RESTx API namespaces
 import logging
@@ -37,7 +38,10 @@ def create_app(config_class=Config):
     # Initialize Flask-RESTx API with the app
     # We pass the 'api' object from extensions.py, which is an instance of Api
     restx_api_extension.init_app(app)
-
+    
+    # Initialize Flask-RESTx API Routes in router.py
+    init_routes(restx_api_extension)
+    
     # --- Register Blueprints ---
     # Register the errors blueprint for centralized error handling
     app.register_blueprint(errors_bp)
