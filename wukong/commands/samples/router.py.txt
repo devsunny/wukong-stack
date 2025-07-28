@@ -1,0 +1,4 @@
+# backend/app/router.py
+
+def init_routes(api):
+    pass

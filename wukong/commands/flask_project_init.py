@@ -85,6 +85,7 @@ def create_flask_project_structure(
     write_sample_file(app_dir, "commands.py.txt", "cli.py")
     write_sample_file(app_dir, "errors.py.txt", "errors.py")
     write_sample_file(app_dir, "flask_config.py.txt", "config.py")
+    write_sample_file(app_dir, "router.py.txt", "router.py")
     write_sample_file(app_dir, "app.py.txt", "main.py")
     tests_dir = make_nested_dirs(flask_base, "tests")
     write_sample_file(tests_dir, "__init__.py")
