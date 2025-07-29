@@ -92,6 +92,8 @@ def create_flask_project_structure(
     model_dir = make_nested_dirs(app_dir, "models")
     write_sample_file(model_dir, "__init__.py")
     write_sample_file(model_dir, "model_base.py.txt", "base.py")
+    dao_dir = make_nested_dirs(app_dir, "dao")
+    write_sample_file(dao_dir, "__init__.py")
     schema_dir = make_nested_dirs(app_dir, "schemas")
     write_sample_file(schema_dir, "__init__.py")
     api_dir = make_nested_dirs(app_dir, "api")

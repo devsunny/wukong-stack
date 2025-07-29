@@ -72,6 +72,16 @@ def get_child_relationships(table: Table, tables: List[Table]) -> List[ForeignKe
     return child_relationships
 
 
+def get_non_pk_columns(table: Table) -> List[Column]:
+    if not table.primary_key:
+        return table.columns.values()
+    non_pk_cols = []
+    for col_name in table.columns:
+        if col_name not in table.primary_key.columns:
+            non_pk_cols.append(table.columns.get(col_name))
+    return non_pk_cols
+
+
 def get_pk_columns(table: Table) -> List[Column]:
     if not table.primary_key:
         return []

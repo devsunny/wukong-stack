@@ -19,11 +19,18 @@ def generate_crud_pydantic_schema(context):
 
 
 def generate_crud_service(context):
+    # output = template_render.render_template("backend/api_resource.py.j2", context)
+    # return output
     pass
 
 
 def generate_crud_api_resource(context):
     output = template_render.render_template("backend/api_resource.py.j2", context)
+    return output
+
+
+def generate_crud_dao(context):
+    output = template_render.render_template("backend/dao.py.j2", context)
     print(output)
     return output
 
@@ -103,6 +110,7 @@ def generate_crud(table: Table, tables: List[Table]):
         "columns": table.columns.values(),
         "composite_fks": composite_fks,
         "pk_columns": utils.get_pk_columns(table),
+        "non_pk_columns": utils.get_non_pk_columns(table),
         "has_table_args": has_table_args,
         "table_singular_snakecase_name": table_singular_snakecase_name,
         "table_singular_pascal_name": table_singular_pascal_name,
@@ -135,6 +143,15 @@ def generate_crud(table: Table, tables: List[Table]):
         "app/api",
         f"{table_singular_snakecase_name}.py",
     )
+
     utils.write_source_file(schema_path, generate_crud_api_resource(context))
 
     generate_crud_service(context)
+
+    dao_path = os.path.join(
+        project_root_dir,
+        backend_dir,
+        "app/dao",
+        f"{table_singular_snakecase_name}.py",
+    )
+    utils.write_source_file(dao_path, generate_crud_dao(context))

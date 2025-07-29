@@ -1,0 +1,52 @@
+
+
+{{ table_singular_snakecase_name | upper }}_SELECT_ALL = """SELECT 
+{% for col in columns %}
+{{col.name}}{% if not loop.last %},{% endif %}
+{% endfor %}
+
+FROM 
+{% if table.schema %}{{table.schema}}.{% endif %}{{table.name}}
+"""
+
+{{ table_singular_snakecase_name | upper }}_SELECT_BY_KEY = """SELECT 
+{% for col in columns %}
+{{col.name}}{% if not loop.last %},{% endif %}
+{% endfor %}
+
+FROM {% if table.schema %}{{table.schema}}.{% endif %}{{table.name}} a
+WHERE
+{% for pk_col in pk_columns %}a.{{pk_col.name }}=%({{pk_col.name }})s{% if not loop.last %} AND {% endif %}
+{% endfor %}
+"""
+
+
+{{ table_singular_snakecase_name | upper }}_INSERT = """INSERT INTO  {% if table.schema %}{{table.schema}}.{% endif -%}{{table.name}}
+({% for col in columns %}{{col.name}}{% if not loop.last %}, {% endif %}{% endfor %}) VALUES
+({% for col in columns %}
+%({{col.name}})s{% if not loop.last %}, {% endif %}
+{% endfor %})
+{% if is_postgresql %} 
+ON CONFLICT ({% for pk_col in pk_columns %}{{pk_col.name }}{% if not loop.last %}, {% endif %}{% endfor %})
+DO UPDATE SET
+{% for col in non_pk_columns %}{{col.name}}=excluded.{{col.name}}{% if not loop.last %}, {% endif %}
+{% endfor %}
+
+{% endif %}
+"""
+
+{{ table_singular_snakecase_name | upper }}_UPADTE = """UPDATE  {% if table.schema %}{{table.schema}}.{% endif -%}{{table.name}}
+SET {% for col in non_pk_columns %}{{col.name}}=%({{col.name}})s{% if not loop.last %}, {% endif %}
+{% endfor %}
+
+WHERE
+{% for pk_col in pk_columns %}{{pk_col.name }}=%({{pk_col.name }})s{% if not loop.last %} AND {% endif %}
+{% endfor %}
+"""
+
+{{ table_singular_snakecase_name | upper }}_DELETE = """DELETE FROM  {% if table.schema %}{{table.schema}}.{% endif -%}{{table.name}}
+WHERE
+{% for pk_col in pk_columns %}{{pk_col.name }}=%({{pk_col.name }})s{% if not loop.last %} AND {% endif %}
+{% endfor %}
+"""
+
