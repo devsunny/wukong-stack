@@ -1,3 +1,6 @@
+#install LM Studio from https://lmstudio.ai/
+#download qwen3-coder-30b-A3b-instruct.gguf model from the dropdown menu in LM Studio
+# make sure turn on the API server in LM Studio settings
 fastapi==0.116.1
 uvicorn==0.35.0
 sqlalchemy==2.0.41
@@ -10,3 +13,10 @@ semver==3.0.4
 build==1.2.2.post1
 twine==6.1.0
 jinja2==3.1.6
+qwen-agent[gui,rag,code_interpreter,mcp]
+click==8.2.1
+openai==1.101.0
+rich==14.0.0
+fastmcp==2.12.3
+qwen-agent==0.0.29
+pydantic[email]==2.11.7

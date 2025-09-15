@@ -6,11 +6,12 @@ class LLMClient:
     def __init__(self):
         self.cfg_man = WukongConfigManager()
         # Configure the OpenAI client to use Ollama's API
-        self.openai_client = openai.OpenAI(
-            base_url=self.cfg_man.get("llm.base_url"),
-            api_key=self.cfg_man.get("llm.api_key"),
-            timeout=1000,
-        )
+        construc_args = {}
+        if self.cfg_man.get("llm.base_url"):
+            construc_args["base_url"] = self.cfg_man.get("llm.base_url")
+        construc_args["api_key"] = self.cfg_man.get("llm.api_key", "ollama")
+        construc_args["timeout"] = int(self.cfg_man.get("llm.timeout", "1000"))
+        self.openai_client = openai.OpenAI(**construc_args)
 
     def invoke_llm_stream(self, prompt: str, model: str = None, max_tokens: int = 8000):
         response = self.openai_client.chat.completions.create(

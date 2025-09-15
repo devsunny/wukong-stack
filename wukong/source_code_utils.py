@@ -62,7 +62,7 @@ def read_source_file(file_path: str) -> str:
     except Exception as e:
         raise IOError(f"Error reading file {file_path}: {str(e)}")
 
-    return f"## {abs_file_path}\n```{language}\n" + content + "\n```\n\n"
+    return f"<|file_sep|> {abs_file_path}\n```{language}\n" + content + "\n```\n\n"
 
 
 def read_source_file_or_directory(file_path: str) -> str:
@@ -101,7 +101,8 @@ def read_source_file_or_directory(file_path: str) -> str:
     elif os.path.isdir(abs_file_path):
         # Security: Prevent directory traversal attacks
         base_dir = abs_file_path
-
+        dir_base_name = os.path.basename(base_dir)
+        source_codes = f"<|repo_name|>{dir_base_name}\n\n"
         for root, _, files in os.walk(base_dir):
             # Security: Ensure we don't traverse outside the base directory
             if not root.startswith(base_dir):
