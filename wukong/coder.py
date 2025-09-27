@@ -4,6 +4,7 @@ from wukong.utils.filename_utils import generate_filename
 from wukong.utils.file_markdown_reader import (
     extract_and_save_code_blocks_auto,
     extract_unnamed_markdown_code_blocks,
+    read_files_to_markdown,
     save_code_blocks_auto,
 )
 
@@ -56,6 +57,9 @@ def code_assitant(prompt, prompt_file, verbose, save_llm_output, extract_code, a
     click.echo(f"Final prompt:\n{final_prompt}")
     if args:
         click.echo(f"Arguments: {args}")
+        source_files = read_files_to_markdown(args)
+        final_prompt += "\n\n" + source_files
+
     llm_client = LLMClient()
     response_content = ""
     for chunk in llm_client.invoke_llm_stream(final_prompt, include_history=False):

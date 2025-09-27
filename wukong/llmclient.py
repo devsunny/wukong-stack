@@ -77,8 +77,9 @@ class LLMClient:
                     delta_text = delta.content
                     response_text += delta_text
                     yield delta_text
-        self.history.append({"role": "user", "content": prompt})
-        self.history.append({"role": "assistant", "content": response_text})
+        if include_history:
+            self.history.append({"role": "user", "content": prompt})
+            self.history.append({"role": "assistant", "content": response_text})
         # return response_text
 
     def invoke_llm(
@@ -100,6 +101,7 @@ class LLMClient:
             stream=False,
         )
         response_text = response.choices[0].message.content
-        self.history.append({"role": "user", "content": prompt})
-        self.history.append({"role": "assistant", "content": response_text})
+        if include_history:
+            self.history.append({"role": "user", "content": prompt})
+            self.history.append({"role": "assistant", "content": response_text})
         return response_text
