@@ -2,7 +2,7 @@ import os
 import re
 from io import StringIO
 from pathlib import Path
-from typing import Callable, Tuple
+from typing import Callable, Set, Tuple, List
 import click
 
 LANGUAGE_MAP = {
@@ -29,7 +29,33 @@ LANGUAGE_MAP = {
 }
 
 
-def read_files_to_markdown(paths, include_hidden=False):
+def list_files_in_directory(file_or_dirs: List[str]) -> Set[str]:
+    """
+    List all files in a directory recursively.
+
+    Args:
+        file_or_dir (str): Path to a file or directory
+    Returns:
+        list: List of file paths
+    """
+    result = set()
+    if file_or_dirs is None:
+        return result
+
+    for file_or_dir in file_or_dirs:
+        path = Path(file_or_dir)
+        if not path.exists():
+            continue
+        if path.is_file():
+            result.add(str(path.resolve()))
+        elif path.is_dir():
+            for file_path in path.rglob("*"):
+                if file_path.is_file():
+                    result.add(str(file_path.resolve()))
+    return result
+
+
+def read_files_to_markdown(paths, include_hidden=False, exclude: List[str] = None):
     """
     Read files from a list of file or folder paths and concatenate them in markdown format.
 
@@ -41,7 +67,7 @@ def read_files_to_markdown(paths, include_hidden=False):
         str: Markdown formatted content with each file in its own code block
     """
     result = []
-
+    exclude_files = list_files_in_directory(exclude) if exclude else set()
     for path_str in paths:
         path = Path(path_str)
 
@@ -56,7 +82,7 @@ def read_files_to_markdown(paths, include_hidden=False):
                 continue
 
         # If it's a file, read directly
-        if path.is_file():
+        if path.is_file() and str(path) not in exclude_files:
             content = read_single_file(path)
             result.append(content)
 
@@ -70,7 +96,8 @@ def read_files_to_markdown(paths, include_hidden=False):
                     and any(part.startswith(".") for part in file_path.parts)
                 ):
                     continue
-
+                if str(file_path.resolve()) in exclude_files:
+                    continue
                 content = read_single_file(file_path)
                 result.append(content)
 

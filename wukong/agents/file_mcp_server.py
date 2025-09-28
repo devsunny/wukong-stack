@@ -17,7 +17,9 @@ def save_file(file_path: str, content: str) -> str:
         A confirmation message.
     """
     try:
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        dir = os.path.dirname(file_path)
+        if dir and not os.path.exists(dir):
+            os.makedirs(dir, exist_ok=True)
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(content)
         return f"File successfully saved to {file_path}"
@@ -46,4 +48,4 @@ def read_file(file_path: str) -> str:
 
 
 if __name__ == "__main__":
-    mcp.run()
+    mcp.run(transport="http", host="0.0.0.0", port=8000, path="/test/mcp")

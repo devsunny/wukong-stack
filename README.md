@@ -1,29 +1,34 @@
 # 🐒 Wukong Stack
 
-**WukongStack** is an intelligent CLI developer tool designed to empower developers with AI-assisted code generation, project scaffolding, and advanced code review and refactor capabilities. Inspired by the legendary Monkey King, Sun Wukong, from Chinese mythology, WukongStack streamlines development by delivering a secure, testable, and modern project structure for rapid prototyping and production-ready applications.
+**WukongStack** Wukong is a revolutionary developer toolkit that empowers engineers with intelligent coding assistance, project scaffolding, and automated code review capabilities. Inspired by the legendary Monkey King's wisdom and magic, Sun Wukong, from Chinese mythology, Wukong helps developers create, refactor, and review code with unparalleled intelligence.Wukong streamlines development by delivering a secure, testable, and modern project structure for rapid prototyping and production-ready applications.
 
 > 🔥 _"I've got all the magic you need for your coding journey!"_
 
-## 🚀 Features
+## 🌟 Features
 
-### 💡 Project Generation
-- Initialize new projects with customizable templates  
-- Create full-stack web applications in seconds  
+### 🔧 Project Generation & Initialization
+- Create project structures for multiple frameworks (Flask, FastAPI, React, Vue.js, etc.)
+- Initialize existing projects with pre-configured templates
+- Support for Python packages, Node.js modules, Go applications, and more
 
-### 🤖 AI Code Assistant
-- Prompt-based code generation using state-of-the-art LLMs  
-- Extract and save generated code blocks directly to files  
-- Stream responses for real-time coding assistance  
+### 💻 AI-Assisted Coding
+- Interactive shell with persistent conversation history
+- Code generation from natural language prompts
+- Intelligent code extraction and file saving
+- Multi-file project scaffolding powered by LLMs
 
-### 🔍 Intelligent Code Review & Refactoring
-- Analyze existing codebases for logic flaws and vulnerabilities  
-- Automatically refactor problematic code sections  
-- Generate unit tests based on current codebase structure  
+### 🕵️ Code Review & Refactoring
+- Automated code review for logic flaws, vulnerabilities, and best practices
+- Smart refactoring suggestions to improve code quality
+- Unit test generation for existing codebases
+- Detailed explanations of complex code sections
 
-### 🧠 Interactive Shell Environment
-- Persistent conversation history with Wukong AI  
-- Multi-line editing support (`edit` command)  
-- History management: clear, save, or show previous exchanges  
+### 🔍 Intelligence Engine
+- Conversation history management with save/load capabilities
+- Configurable LLM settings (local Ollama support)
+- Security-conscious file operations with validation
+- Multi-language source code parsing and handling
+
 
 ## 📦 Installation
 
@@ -34,7 +39,7 @@ pip install wukong-stack
 
 > **Note**: Requires Python 3.10+
 
-## 💻 Usage Examples
+## 🚀 Quick Start
 
 ### Initialize a new project
 ```bash

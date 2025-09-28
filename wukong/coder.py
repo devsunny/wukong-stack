@@ -28,11 +28,17 @@ from wukong.utils.file_markdown_reader import (
     help="Extract code blocks from LLM output and save to files",
     default=False,
 )
-@click.option("--verbose", is_flag=True, help="Enable verbose output", default=False)
+@click.option(
+    "--exclude",
+    multiple=True,
+    type=click.Path(exists=True, file_okay=True, dir_okay=True),
+    help="Directories or files to exclude when reading source files",
+    default=[],
+)
 @click.argument(
     "args", nargs=-1, type=click.Path(exists=True, file_okay=True, dir_okay=True)
 )
-def code_assitant(prompt, prompt_file, verbose, save_llm_output, extract_code, args):
+def code_assitant(prompt, prompt_file, save_llm_output, extract_code, exclude, args):
     """
     AI Code Assistant CLI
     """
@@ -57,7 +63,7 @@ def code_assitant(prompt, prompt_file, verbose, save_llm_output, extract_code, a
     click.echo(f"Final prompt:\n{final_prompt}")
     if args:
         click.echo(f"Arguments: {args}")
-        source_files = read_files_to_markdown(args)
+        source_files = read_files_to_markdown(args, exclude=exclude)
         final_prompt += "\n\n" + source_files
 
     llm_client = LLMClient()
