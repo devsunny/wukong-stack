@@ -74,7 +74,7 @@ def refactor_code(source_code):
 @click.command()
 @click.argument("source_code", type=click.Path(exists=True))
 def create_unit_tests(source_code):
-    """Review the source code file or files in the given directory."""
+    """Generate unit tests for file or files in the given directory."""
     while not source_code or source_code.strip() in ["\\q", "\\quit"]:
         source_code = click.prompt(
             "Please enter the path to the source code file or directory (or \\q to quit)",
@@ -90,4 +90,4 @@ def create_unit_tests(source_code):
         resp_text += chunk
         print(chunk, end="", flush=True)
     sources = markdown_code_block_reader(resp_text)
-    # write_code_to_files(sources)
+    write_code_to_files(sources)
