@@ -9,6 +9,7 @@ from wukong.code_review import (
     create_unit_tests,
 )  # Import the review_code function
 from wukong.coder import code_assitant
+from wukong.wukong_config import config
 
 
 @click.group()
@@ -40,6 +41,6 @@ cli.add_command(refactor_code, "refactor")  # Add the refactor_code command
 cli.add_command(create_unit_tests, "unittest")  # Add the create_unit_tests command
 cli.add_command(shell, "shell")  # Add the shell command
 cli.add_command(code_assitant, "code")  # Add the code_assistant command
-
+cli.add_command(config, "config")  # Add the config command
 if __name__ == "__main__":
     cli()

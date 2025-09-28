@@ -1,6 +1,8 @@
 import toml
 import os
 import copy
+import click
+from pathlib import Path
 
 
 # --- TOMLConfigManager Class ---
@@ -21,30 +23,31 @@ class WukongConfigManager:
         self._is_loaded = False  # Track if a config has been successfully loaded
         self.load_config()
 
-    def _find_file_in_parent_tree(self, file_name):
+    def _find_file_in_parent_tree(self):
         if self.cfg_file_path is not None:
-            os.makedirs(os.path.dirname(file_name), exist_ok=True)
+            os.makedirs(os.path.dirname(self.cfg_file_path), exist_ok=True)
             return os.path.abspath(self.cfg_file_path)
 
-        file_path = os.path.abspath(file_name)
-        base_name = os.path.basename(file_name)
+        dir = os.path.abspath(os.getcwd())
         root_dir = os.path.abspath(os.sep)
-
-        dir = os.path.dirname(file_path)
+        file_name = WukongConfigManager.WUKONG_CFG_FILE
         while dir != root_dir:
             file_path = os.path.join(dir, file_name)
             if os.path.exists(file_path):
                 return file_path
             dir = os.path.dirname(dir)
 
+        return self._get_global_config_path()
+
+    @staticmethod
+    def _get_global_config_path():
         home_directory = os.path.abspath(os.path.expanduser("~"))
         global_wukong_cfg_dir = os.path.join(home_directory, ".wukong")
-        global_wukong_cfg = os.path.join(global_wukong_cfg_dir, base_name)
         os.makedirs(global_wukong_cfg_dir, exist_ok=True)
-        return global_wukong_cfg
+        return os.path.join(global_wukong_cfg_dir, WukongConfigManager.WUKONG_CFG_FILE)
 
     def load_config(self):
-        file_path = self._find_file_in_parent_tree(WukongConfigManager.WUKONG_CFG_FILE)
+        file_path = self._find_file_in_parent_tree()
         if not os.path.exists(file_path):
             return
         try:
@@ -60,8 +63,13 @@ class WukongConfigManager:
                 f"An unexpected error occurred while loading config from '{file_path}': {e}"
             )
 
-    def save_config(self):
-        file_path = self._find_file_in_parent_tree(WukongConfigManager.WUKONG_CFG_FILE)
+    def save_config(self, is_global=False):
+        if is_global:
+            file_path = self._get_global_config_path()
+        else:
+            file_path = self._find_file_in_parent_tree(
+                WukongConfigManager.WUKONG_CFG_FILE
+            )
 
         # Create a deep copy to encrypt for saving without altering the active decrypted config
         config_to_save = copy.deepcopy(self.config)
@@ -118,3 +126,117 @@ class WukongConfigManager:
     def __str__(self):
         """Returns a string representation of the currently loaded (decrypted) config."""
         return toml.dumps(self.config)
+
+
+@click.group()
+def config():
+    """Manage Wukong configuration."""
+    pass
+
+
+@config.command()
+@click.argument(
+    "key",
+    required=True,
+    nargs=1,
+)
+@click.argument(
+    "value",
+    required=True,
+    nargs=1,
+)
+@click.option(
+    "--global",
+    "-g",
+    "is_global",
+    is_flag=True,
+    help="Set the configuration globally.",
+    default=False,
+)
+def set(key, value, is_global):
+    """Set a configuration value.
+
+    Arguments:
+        key: Dot-separated key path to get (e.g., "database.password").
+        value: The value to set.
+    Options:
+        --global / -g: Save the configuration globally.
+    """
+    manager = WukongConfigManager(
+        WukongConfigManager._get_global_config_path() if is_global else None
+    )
+    manager.set(key, value)
+    manager.save_config(is_global=is_global)
+
+
+@config.command()
+@click.argument(
+    "key",
+    required=True,
+    nargs=1,
+)
+def get(key):
+    """Get a configuration value.
+
+    Arguments:
+        key: Dot-separated key path to get (e.g., "database.password").
+    """
+    manager = WukongConfigManager()
+    value = manager.get(key)
+    if value is not None:
+        print(f"{key} = {value}")
+    else:
+        print(f"Key '{key}' not found in configuration.")
+
+
+@config.command()
+@click.option(
+    "--global",
+    "-g",
+    "is_global",
+    is_flag=True,
+    help="Save the configuration globally.",
+    default=False,
+)
+@click.argument(
+    "key",
+    required=True,
+    nargs=1,
+)
+def delete(key, is_global):
+    """Delete a configuration entry.
+
+    Arguments:
+        key: Dot-separated key path to get (e.g., "database.password").
+    """
+    manager = WukongConfigManager(
+        WukongConfigManager._get_global_config_path() if is_global else None
+    )
+    if key:
+        keys = key.split(".")
+        current = manager.config
+        for i, k in enumerate(keys):
+            if k in current:
+                if i == len(keys) - 1:
+                    del current[k]
+                    print(f"Deleted key '{key}'.")
+                else:
+                    current = current[k]
+            else:
+                print(f"Key '{key}' not found in configuration.")
+                return
+        manager.save_config(is_global=is_global)
+
+
+@config.command()
+def init():
+    """Initialize a new configuration file in the current directory."""
+    dir = os.path.abspath(os.getcwd())
+    file_name = WukongConfigManager.WUKONG_CFG_FILE
+    file_path = os.path.join(dir, file_name)
+    if os.path.exists(file_path):
+        print("Configuration file already exists. Use 'set' to modify values.")
+    else:
+        with open(file_path, "w", encoding="utf-8") as f:
+            toml.dump({}, f)
+        print("Initialized new configuration file in the current directory.")
