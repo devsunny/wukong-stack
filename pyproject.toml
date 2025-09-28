@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "wukong-stack"
-version = "0.1.3"
+version = "0.1.4"
 description = "WukongStack is a dynamic CLI tool that generates a full-stack web application skeleton"
 readme = "README.md"
 requires-python = ">=3.8"
