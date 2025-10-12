@@ -826,26 +826,27 @@ class PostgreSQLClient:
                         results = self.execute_query(data_query)  
                         sample_values = json.dumps( [ row[column] for row in results] , cls=CustomJsonEncoder) 
                     except Exception as e:
-                        sample_values = "[]"  
+                        sample_values = "[]" 
                         
-                    columns_info.append(f"- Column Name: {column}\n - Sample Values: {sample_values}\n")
+                    columns_info.append(f"- Column Name: {column}\n - Data Type: {col_type}\n - Sample Values: {sample_values}\n")
                 
                 columns_info_str = "\n".join(columns_info)  
                                     
-                prompt = COLUMN_DESCRITOPN_PROMPT.format(column_name=column, columns_info=columns_info_str)
-                response_text = ""
-                for chunk in self.llm_client.invoke_model_stream(prompt=prompt):
-                    response_text += chunk
-                    print(chunk, end='', flush=True)
+                prompt = COLUMN_DESCRITOPN_PROMPT.format(column_name=column, columns_info=columns_info_str)                
+                response_text = self.llm_client.invoke_model_stream(prompt=prompt, streaming_handler=lambda x: print(x, end='', flush=True))
                 response_text = response_text.split("</think>")[-1].strip()
-                started = False
+                
+                print("-------------------------------\n")
+                print(response_text)
+                print("\n-------------------------------\n")
                 clean_text = ""
+                started = False
                 for line in StringIO(response_text):
                     if not started and line.startswith("```"):
-                        started = True
-                        continue
+                        started = True                        
                     if started and line.startswith("```"):
-                        break  
+                        started = False
+                        clean_text += "\n"
                     if line:
                         clean_text += line                
                 
