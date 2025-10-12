@@ -86,6 +86,42 @@ Save LLM output and extract code blocks:
 wukong code --prompt "Generate REST API routes for user authentication" --save-llm-output --extract-code
 ```
 
+Generate text to SQL schema:
+```bash
+wukong postgresql -d <database_config_section> -s <database_schema> -o <generated schema file>
+wukong postgresql -e  -d <database_config_section>  -s <database_schema> -o <generated schema file>
+wukong postgresql -d <database_config_section> -o <generated schema file>  <schema>.<table_name> <schema>.<table_name2> <schema>.<table_name3> ...
+```
+Help
+```text
+generate LLM table schema for text to SQL
+
+Options:
+  -d, --database TEXT     database configuration section name in
+                          .kara_code.env.toml
+  -o, --schema-file FILE  Path to schema file output
+  -e, --enhance           Enhance schema with column descriptions using LLM
+  -s, --schema TEXT       Schema Name
+  --help                  Show this message and exit.
+```
+
+Launch text to sql chat:
+```bash
+wukong postgresql chat  -d <database_config_section> -s  <generated schema file>
+```
+Help:
+```text
+Start an interactive chat session to interact with PostgreSQL database using
+  LLM powered text to SQL
+
+Options:
+  -d, --database TEXT     database configuration section name in
+                          .kara_code.env.toml
+  -s, --schema-file FILE  Path to schema file for text to SQL  [required]
+  -r, --reload            Reload schema from file every time
+  --help                  Show this message and exit.
+```
+
 # AI Assistant Configuration Guide
 
 Welcome to the AI Assistant setup instructions. You have two options to configure your AI assistant:

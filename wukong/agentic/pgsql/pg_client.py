@@ -705,11 +705,13 @@ class PostgreSQLClient:
                 schema_lines.append(f" - {column}: {col_type}{key_tag}")
                 
             if enhanced is True:             
-                descriptions = self.get_column_descriptions(schema, table_name, select_columns)
-                if descriptions:
-                    schema_lines.append("\n **Column Metadata:**")
-                    schema_lines.extend(descriptions)
-                
+                try:
+                    descriptions = self.get_column_descriptions(schema, table_name, select_columns)
+                    if descriptions:
+                        schema_lines.append("\n **Column Metadata:**")
+                        schema_lines.extend(descriptions)
+                except Exception as e:
+                    self.logger.error(f"Error enhancing schema for table '{table_name}': {e}")
             schema_str = "\n".join(schema_lines)
             return schema_str
             
