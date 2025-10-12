@@ -1,13 +1,20 @@
 import psycopg2
-from psycopg2 import pool
+import psycopg2.pool
+import json
+from io import StringIO
+from wukong.utils  import CustomJsonEncoder
+import re
 from typing import List, Dict, Any, Optional, Tuple
 import logging
 from urllib.parse import urlparse
-import re
+
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 from rich.text import Text
+from wukong.utils import json_utils
+from .pg_prompts import TABLE_DESCRIPTION_PROMPT, COLUMN_DESCRITOPN_PROMPT
+
 
 class PostgreSQLClient:
     """
@@ -676,7 +683,7 @@ class PostgreSQLClient:
         schema = "public"  # default schema
         if '.' in table_name:
             schema, table_name = table_name.split('.', 1)
-        
+        user_queries = []
         try:
             pks = self.get_table_primary_key(f"{schema}.{table_name}")
             fks = self.get_table_foreign_keys(f"{schema}.{table_name}")
@@ -686,11 +693,10 @@ class PostgreSQLClient:
             if not results:
                 self.logger.warning(f"Table '{table_name}' does not exist or has no columns.")
                 return None
-            
-            schema_lines = [f"Schema: {schema}", f"Table: {table_name}","Columns:"]            
-            
+                        
+            schema_lines = [f"Schema: {schema}", f"Table: {table_name}","Columns:"]  
             select_columns = []
-            
+                        
             for row in results:
                 column = row['column_name']                
                 col_type = row['data_type']  
@@ -704,16 +710,39 @@ class PostgreSQLClient:
                 
                 schema_lines.append(f" - {column}: {col_type}{key_tag}")
                 
-            if enhanced is True:             
-                try:
-                    descriptions = self.get_column_descriptions(schema, table_name, select_columns)
-                    if descriptions:
+                      
+            try:
+                descriptions = self.get_column_descriptions(schema, table_name, select_columns)
+                if descriptions:                    
+                    table_mds = schema_lines + ["\n**Column Metadata:**"] + descriptions
+                    tb_desc_prompt = TABLE_DESCRIPTION_PROMPT.format(table_info="\n".join(table_mds))
+                    resp_str = ""
+                    for chunk in self.llm_client.invoke_model_stream(prompt=tb_desc_prompt):
+                        resp_str += chunk
+                        print(chunk, end='', flush=True)
+                    print("\n")
+                    resp_str = resp_str.split("</think>")[-1].strip()                    
+                    try:
+                        json_text = json_utils.extract_json_from_text(resp_str)                        
+                        table_metadata = json.loads(json_text)
+                        if 'table_description' in table_metadata:
+                            schema_lines.append(f"\n**Table Description:** {table_metadata['table_description']}")                        
+                        if 'example_user_queries' in table_metadata:
+                            user_queries = table_metadata['example_user_queries']
+                                
+                    except json.JSONDecodeError as e:
+                        self.logger.error(f"Error parsing table metadata JSON: {e}")
+                        # Fallback to raw descriptions
+                    
+                    if enhanced is True:   
                         schema_lines.append("\n **Column Metadata:**")
-                        schema_lines.extend(descriptions)
-                except Exception as e:
-                    self.logger.error(f"Error enhancing schema for table '{table_name}': {e}")
+                        schema_lines.extend(descriptions)            
+            
+            except Exception as e:
+                self.logger.error(f"Error enhancing schema for table '{table_name}': {e}")
+                
             schema_str = "\n".join(schema_lines)
-            return schema_str
+            return schema_str, user_queries
             
         except Exception as e:
             self.logger.error(f"Error retrieving schema for table '{table_name}': {e}")
@@ -775,15 +804,6 @@ class PostgreSQLClient:
         Returns:
             List of column descriptions
         """
-        
-        
-        import json
-        from .pg_prompts import DESCRITOPN_PROMPT
-        from io import StringIO
-        from wukong.utils  import CustomJsonEncoder
-        import re
-        
-        
         if not select_columns:
             return []        
         assert re.search(r'^[a-zA-Z_][a-zA-Z0-9_]*$', table_name), f"Invalid table name: {table_name}"
@@ -812,7 +832,7 @@ class PostgreSQLClient:
                 
                 columns_info_str = "\n".join(columns_info)  
                                     
-                prompt = DESCRITOPN_PROMPT.format(column_name=column, columns_info=columns_info_str)
+                prompt = COLUMN_DESCRITOPN_PROMPT.format(column_name=column, columns_info=columns_info_str)
                 response_text = ""
                 for chunk in self.llm_client.invoke_model_stream(prompt=prompt):
                     response_text += chunk

@@ -138,6 +138,42 @@ Before finalizing your query, verify:
 
 """
 
+TABLE_DESCRIPTION_PROMPT = """You are an expert data analyst. Your task is to infer and describe database table semantics based on table name, column name and sample data values. 
+
+### Given:
+{table_info}
+
+### Instructions:
+1. Analyze the table name, column names and sample values to infer a clear, human-readable **description** of what the table represents.
+2. generate a list of **distinct possible user queries** and corresponding **SQL templates** that can be used to query this table.
+3. For each column, infer a clear, human-readable **description** of what the column, represents.
+4. Follow the exact output json format below.
+
+### Output Format:
+```json
+{{
+  "table_name": "<table_name>",
+  "table_description": "<concise explanation of the table meaning>",
+  "example_user_queries": [
+    {{
+      "user_query": "<example natural language question>",
+      "sql_template": "<corresponding SQL query template with placeholders>"
+    }},
+    ...
+  ]
+}}
+``` 
+### OUTPUT RULES:
+- Ensure the output is valid JSON.  
+- Ensoure the JSON is enclosed in triple backticks (```) and labeled as json for easy extraction.
+- Use placeholders in the SQL template for any user-specific values (e.g., `<country_name>`, `<start_date>`, `<end_date>`).
+- Do not include any actual data values in the SQL templates, only use placeholders.
+- Ensure the SQL templates are syntactically correct and follow best practices.
+- Use comments in the SQL templates to explain any non-obvious mappings or logic
+- Use double quotes for all JSON keys and string values.
+- If you cannot infer the table meaning, respond with "Unknown" for the table description.  
+
+"""
 
 TEXT_TO_SQL="""You are an expert SQL query generator. Your task is to convert natural language questions into accurate SQL queries based on the provided database schema.
 
@@ -281,7 +317,7 @@ Before finalizing your query, verify:
 """
 
 
-DESCRITOPN_PROMPT="""You are an expert data analyst. Your task is to infer and describe database column semantics based on its name and sample data values.
+COLUMN_DESCRITOPN_PROMPT="""You are an expert data analyst. Your task is to infer and describe database column semantics based on its name and sample data values.
 
 Given:
 {columns_info}

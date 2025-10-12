@@ -1,3 +1,4 @@
+import json
 import pathlib
 from typing import List
 import click
@@ -72,8 +73,9 @@ def execute_sql(database: str, sql_file:pathlib.Path=None, sql_string:str=None):
 @click.option("--schema-file", "-o", type=click.Path(exists=False, file_okay=True, dir_okay=False, path_type=pathlib.Path), default=None, help="Path to schema file output")     
 @click.option("--enhance", "-e",  is_flag=True, type=bool, default=False, help="Enhance schema with column descriptions using LLM")
 @click.option("--schema", "-s",  type=str, help="Schema Name", default=None)
+@click.option("--exclude-flag", "-x",  is_flag=True, type=bool, default=False, help="Exclude flag indices from table names the schema extraction")
 @click.argument("tables",  type=str, nargs=-1)
-def text_to_sql_schema(database: str, schema_file:pathlib.Path, tables:List[str], schema:str, enhance:bool):
+def text_to_sql_schema(database: str, schema_file:pathlib.Path, tables:List[str], schema:str, enhance:bool, exclude_flag:bool):
     """generate LLM table schema for text to SQL"""
     assert tables or schema is not None, "Either tables or schema must be specified"
     console = Console()
@@ -81,19 +83,32 @@ def text_to_sql_schema(database: str, schema_file:pathlib.Path, tables:List[str]
     with PostgreSQLClient(**dbprop) as dbclient: 
         dbclient.llm_client = get_llm_client(dbclient)       
         schemas = []
+        if exclude_flag is True and schema is not None and tables:
+            input_tables = set([tb.lower() if "." in tb else f"public.{tb}".lower() for tb in tables])
+            tables = [tb for tb in dbclient.get_tables(schema) if tb.lower() not in input_tables]
+        elif exclude_flag is False and schema is not None and not tables:    
+             tables = dbclient.get_tables(schema)
+                     
         if not tables:
-            tables = dbclient.get_tables(schema)
-            if not tables:
-                console.print(f"[yellow]No tables found in schema {schema}[/yellow]")
-                return
+            console.print(f"[yellow]No tables found in schema {schema}[/yellow]")
+            return
         
+        example_queries = []
         for table in tables:
-            db_schema  = dbclient.get_table_schema(table, enhance)
+            db_schema, queries  = dbclient.get_table_schema(table, enhance)
             if db_schema is None:
                 console.print(f"[yellow]No such table {table}[/yellow]")
             else:
                 schemas.append(db_schema)
+                if queries:
+                    example_queries.extend(queries)
         
+        if example_queries:
+            schemas.append("## Most Frequent User Queries and SQL Templates")            
+            schemas.append("```json")
+            schemas.append(json.dumps(example_queries, indent=2))
+            schemas.append("```")
+                        
         if schema_file is not None:
             schema_file.write_text("\n\n".join(schemas), encoding="utf-8")
             console.print(f"[green]✔ Schema is written to {schema_file}[/green]")

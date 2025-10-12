@@ -55,7 +55,25 @@ class LLMClient:
                      temperature=0.1,
                      system_prompt:str = None,
                      history_manager:LLMHistoryManager = None,
-                     streaming:bool = False)->str:        
+                     streaming:bool = False,
+                     include_history:bool = True,
+                     streaming_handler:Callable = None,
+                     )->str:
+        """ Invoke the LLM model with the given prompt or messages. 
+            Either prompt or messages must be provided. If both are provided, messages will be used.
+        Args:
+            prompt (str, optional): The prompt to send to the LLM. Defaults to None.
+            messages (List[dict], optional): The messages to send to the LLM. Defaults to None.
+            model_id (str, optional): The model ID to use. If not provided, the default model ID will be used. Defaults to None.
+            max_tokens (int, optional): The maximum number of tokens to generate. Defaults to 0.
+            max_completion_tokens (int, optional): The maximum number of tokens for completion. Defaults to 0.
+            temperature (float, optional): The temperature for the LLM. Defaults to 0.1.
+            system_prompt (str, optional): The system prompt to prepend to the messages. Defaults to None.
+            history_manager (LLMHistoryManager, optional): The history manager to use. If not provided, the default history manager will be used. Defaults to None.
+            streaming (bool, optional): Whether to stream the response. Defaults to False.
+            include_history (bool, optional): Whether to include chat history in the messages. Defaults to True.
+            streaming_handler (Callable, optional): A callable that takes a string and handles streaming output. If not provided, output will be printed directly. Defaults to None.
+        """
         llm = self._get_llm()        
         req_max_tokens = max(max_tokens, max_completion_tokens)
         if req_max_tokens == 0:
@@ -64,10 +82,15 @@ class LLMClient:
             req_max_tokens = self.max_completion_tokens        
           
         input_messages = messages if messages is not None else [{"role": "user", "content": prompt}]
-        llm_messages = self.get_messages_with_history(input_messages, history_manager=history_manager)
+        if include_history:
+            llm_messages = self.get_messages_with_history(input_messages, history_manager=history_manager)
+        else:
+            llm_messages = input_messages
+        
         if system_prompt:
             llm_messages.insert(0, {"role": "system", "content": system_prompt})
         
+        invoke_stream_handler = streaming_handler if streaming_handler is not None else self.streaming_handler
         selected_model = model_id if model_id is not None else self.model_id
         models = [selected_model] + self.fallback_models if self.fallback_models else [selected_model]
         for model_id in models:
@@ -85,17 +108,17 @@ class LLMClient:
                         resp_chunk = chunk.choices[0].delta.content
                         if resp_chunk is not None:
                             response_txt += resp_chunk
-                            if self.streaming_handler:
-                                self.streaming_handler(resp_chunk)
+                            if invoke_stream_handler:
+                                invoke_stream_handler(resp_chunk)
                             else:
                                 print(resp_chunk, end="", flush=True)                    
                     print() # newline after stream finished 
-                    if self.streaming_handler:
-                        self.streaming_handler("\n")                   
+                    if invoke_stream_handler:
+                        invoke_stream_handler("\n")                   
                 else:
                     response_txt = response.choices[0].message.content  
                     
-                if history_manager is not None:
+                if history_manager is not None and include_history:
                     history_manager.add_entry(llm_messages[-1]) # only add user message
                     history_manager.add_assistant_message(response_txt)
                 return response_txt          
@@ -120,6 +143,8 @@ class LLMClient:
                      temperature=0.1,
                      system_prompt:str = None,
                      history_manager:LLMHistoryManager = None,
+                     include_history:bool = True,
+                     streaming_handler:Callable = None,
                      )->str:        
         return self.invoke_model(prompt=prompt, 
                                  messages=messages, 
@@ -129,5 +154,7 @@ class LLMClient:
                                  temperature=temperature,
                                  system_prompt=system_prompt,
                                  history_manager=history_manager,
-                                 streaming=True)
+                                 streaming=True,
+                                 include_history=include_history, 
+                                 streaming_handler=streaming_handler)
     

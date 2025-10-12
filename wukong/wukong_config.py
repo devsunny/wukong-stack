@@ -60,7 +60,7 @@ class WukongConfigManager:
             return {}
         try:
             with open(file_path, "r", encoding="utf-8") as f:
-                raw_config = toml.load(f)
+                raw_config = toml.load(f)                
                 return raw_config
         except toml.TomlDecodeError as e:
             raise ValueError(f"Error decoding TOML file '{file_path}': {e}")
@@ -100,7 +100,7 @@ class WukongConfigManager:
             if isinstance(current, dict) and key in current:
                 current = current[key]
             else:
-                return default
+                return default           
         return current
 
     def get(self, key_path: str, default=None):
