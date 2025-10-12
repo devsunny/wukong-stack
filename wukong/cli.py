@@ -10,8 +10,7 @@ from wukong.code_review import (
 )  # Import the review_code function
 from wukong.coder import code_assitant
 from wukong.wukong_config import config
-
-
+from wukong.agentic.pgsql.commands import pg_sql
 @click.group()
 def cli():
     """
@@ -42,5 +41,7 @@ cli.add_command(create_unit_tests, "unittest")  # Add the create_unit_tests comm
 cli.add_command(shell, "shell")  # Add the shell command
 cli.add_command(code_assitant, "code")  # Add the code_assistant command
 cli.add_command(config, "config")  # Add the config command
+cli.add_command(pg_sql, "postgresql")  # Add the pg_sql command
+
 if __name__ == "__main__":
     cli()

@@ -1,8 +1,12 @@
-import toml
+import logging
+import tomlkit as toml
 import os
+import json
 import copy
 import click
 from pathlib import Path
+
+logger=logging.getLogger(__name__)
 
 
 # --- TOMLConfigManager Class ---
@@ -114,6 +118,8 @@ class WukongConfigManager:
         value = self._get_value(key_path, self.config, default=None)
         if value is not None:
             return value
+
+        # print(json.dumps(self.global_config, indent=2))  # --- IGNORE ---
         return self._get_value(key_path, self.global_config, default=default)
 
     def set(self, key_path: str, value, is_global=False):
@@ -126,6 +132,10 @@ class WukongConfigManager:
             value: The value to set.
         """
         keys = key_path.split(".")
+        try:
+            value = json.loads(value) if isinstance(value, str) else value
+        except json.JSONDecodeError:
+            pass
         current = self.config if not is_global else self.global_config
         for i, key in enumerate(keys):
             if i == len(keys) - 1:
@@ -142,6 +152,9 @@ class WukongConfigManager:
     def __str__(self):
         """Returns a string representation of the currently loaded (decrypted) config."""
         return toml.dumps(self.config)
+
+
+wukong_config = WukongConfigManager()
 
 
 @click.group()

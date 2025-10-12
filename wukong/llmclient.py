@@ -101,7 +101,7 @@ class LLMClient:
             stream=False,
         )
         response_text = response.choices[0].message.content
-        if include_history:
+        if include_history and response_text:
             self.history.append({"role": "user", "content": prompt})
             self.history.append({"role": "assistant", "content": response_text})
         return response_text

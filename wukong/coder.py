@@ -62,7 +62,7 @@ def code_assitant(prompt, prompt_file, save_llm_output, extract_code, exclude, a
 
     click.echo(f"Final prompt:\n{final_prompt}")
     if args:
-        click.echo(f"Arguments: {args}")
+        click.echo(f"Arguments: {list(args)}")
         source_files = read_files_to_markdown(args, exclude=exclude)
         final_prompt += "\n\n" + source_files
 
